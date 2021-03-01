@@ -1,0 +1,12 @@
+.Rproj.user
+.Rhistory
+.RData
+.DStore
+
+### Data files ###
+
+*.csv
+*.rds
+*.txt
+*.xls
+*.xlsx
