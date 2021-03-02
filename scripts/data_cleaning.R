@@ -57,11 +57,11 @@ lending_loans <- lending_loans %>%
             mths_since_last_delinq, # 63.3 % missing values
             mths_since_last_record, # 91.4% missing vales
             out_prncp_inv, # highly correlated with out_prncp
-            last_fico_range_low # highly corrlated with last_fico_range_high
+            last_fico_range_low # highly correlated with last_fico_range_high
             )) %>% 
   drop_na(open_acc) # remove 32 rows as this rows are missing across multiple columns
 
-# feature engeneering
+# feature engineering
 lending_loans <- lending_loans %>% 
   mutate(default_loan = case_when(loan_status == "Fully Paid" ~ 0,
                                   loan_status == "Current" ~ 0,
@@ -82,8 +82,19 @@ lending_loans <- lending_loans %>%
          recoveries = ifelse(recoveries == 0, 0, 1), # post charge off gross recovery, no = 0, yes = 1
          collection_recovery_fee = ifelse(collection_recovery_fee == 0, 0, 1), # post charge off collection fee, no = 0, yes = 1
          int_rate = str_remove_all(int_rate, "[%]"),
-         int_rate = as.numeric(int_rate))
-
-
+         int_rate = as.numeric(int_rate), # convert interest rate to numeric
+         issue_d = str_remove_all(issue_d, "[0-9-]"), # remove year, leave month
+         issue_d = case_when(issue_d %in% c("Jan", "Feb", "Mar") ~ "Q1",
+                             issue_d %in% c("Apr", "May", "Jun") ~ "Q2",
+                             issue_d %in% c("Jul", "Aug", "Sep") ~ "Q3",
+                             issue_d %in% c("Oct", "Nov", "Dec") ~ "Q4"),
+         emp_length = recode(emp_length, "n/a" = "unknown"),
+         revol_util = str_remove_all(revol_util, "[%]"), # the amount of credit the borrower is using relative to all available revolving credit
+         revol_util = as.numeric(revol_util), # convert to numeric
+         pub_rec_bankruptcies = as.character(pub_rec_bankruptcies),
+         pub_rec_bankruptcies = case_when(pub_rec_bankruptcies == "0" ~ "no", 
+                                          pub_rec_bankruptcies == "1" ~ "yes",
+                                          pub_rec_bankruptcies == "2" ~ "yes", 
+                                          TRUE ~ "unknown")) # public record bankruptcies
 
 write_csv(lending_loans, "clean_data/lending_loans.csv")
