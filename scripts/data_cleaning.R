@@ -38,7 +38,7 @@ rm(grade_info, state_names, lending_club_loans)
 
 # further column reduction
 lending_loans <- lending_loans %>% 
-  select(-c(id, member_id, url, desc, # unrequited
+  select(-c(id, member_id, url, desc, last_pymnt_d, last_pymnt_amnt, last_credit_pull_d, # unrequited
             sub_grade, addr_state, # replaced with abbreviation
             tax_liens, # only one different value
             policy_code, # only policy code = 1 or NA, no policy code = 2
@@ -46,17 +46,23 @@ lending_loans <- lending_loans %>%
             collections_12_mths_ex_med, chargeoff_within_12_mths, # 0, NA 
             title, # high correlation with purpose
             emp_title, next_pymnt_d, # high cardinalty and a lot missing 
-            zip_code, # high cardinalty
+            zip_code, earliest_cr_line, # high cardinalty, not required
             funded_amnt, funded_amnt_inv, # highly correlated with loan_amount
             pymnt_plan, # only one True value - rest False
             total_pymnt_inv, # highly correlated with total_pymnt
             acc_now_delinq, # 4 rows = 1 all have loan_status = fully paid
-            delinq_amnt # 2 rows with loan_status = fully paid
-            ))
+            delinq_amnt, # 2 rows with loan_status = fully paid
+            application_type, # all applications are individual
+            fico_range_low, # highly correlated with fico_range_high
+            mths_since_last_delinq, # 63.3 % missing values
+            mths_since_last_record, # 91.4% missing vales
+            out_prncp_inv, # highly correlated with out_prncp
+            last_fico_range_low # highly corrlated with last_fico_range_high
+            )) %>% 
+  drop_na(open_acc) # remove 32 rows as this rows are missing across multiple columns
 
-summary(lending_loans)
-# feature abstraction: loan status normal = 0, default = 1
-lending_loans <- lending_club_loans %>% 
+# feature engeneering
+lending_loans <- lending_loans %>% 
   mutate(default_loan = case_when(loan_status == "Fully Paid" ~ 0,
                                   loan_status == "Current" ~ 0,
                                   loan_status == "Does not meet the credit policy. Status:Fully Paid" ~ 0,
@@ -66,20 +72,18 @@ lending_loans <- lending_club_loans %>%
                                   loan_status == "Late (16-30 days)" ~ 1,
                                   loan_status == "Default" ~ 1,
                                   loan_status == "Does not meet the credit policy. Status:Charged Off" ~ 1
-                                  )) %>% 
-  drop_na(open_acc) %>% # drop missing values - 29 rows in seven columns
-  select(-c(last_pymnt_d, 
-            loan_status, # replaced with abbreviation
-            )) %>% 
-  rename("addr_state" = "state_name")
+                                  )) %>% # abstraction: loan status normal = 0, default = 1
+  rename("addr_state" = "state_name") %>% 
+  mutate(delinq_2yrs = ifelse(delinq_2yrs == 0, 0, 1), # past-due incidences of delinquency in the borrower's credit file for the past two years
+         inq_last_6mths  = ifelse(inq_last_6mths == 0, 0, 1),
+         pub_rec = ifelse(pub_rec == 0, 0, 1), # derogatory public records, no = 0, yes = 1
+         out_prncp = ifelse(out_prncp == 0, 0, 1), # Remaining outstanding principal for total amount funded, no = 0, yes = 1
+         total_rec_late_fee = ifelse(total_rec_late_fee == 0, 0, 1), # Late fees received to date, no = 0, yes = 1
+         recoveries = ifelse(recoveries == 0, 0, 1), # post charge off gross recovery, no = 0, yes = 1
+         collection_recovery_fee = ifelse(collection_recovery_fee == 0, 0, 1), # post charge off collection fee, no = 0, yes = 1
+         int_rate = str_remove_all(int_rate, "[%]"),
+         int_rate = as.numeric(int_rate))
+
+
 
 write_csv(lending_loans, "clean_data/lending_loans.csv")
-
-
-# out_prncp, out_prncp_inv, # unrequited
-
-# application_type only individual or NA
-
-lending_loans %>% 
-  select(loan_status, pub_rec_bankruptcies) %>% 
-  filter(!pub_rec_bankruptcies == 0)
