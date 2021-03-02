@@ -20,22 +20,26 @@ lending_club_loans <- left_join(lending_club_loans, state_names,
 rm(grade_info, state_names)
 
 # feature abstraction: loan status normal = 0, default = 1
-lending_club_loans <- lending_club_loans %>% 
-  mutate(default_status = case_when(loan_status == "Fully Paid" ~ 0,
-                                    loan_status == "Current" ~ 0,
-                                    loan_status == "Does not meet the credit policy. Status:Fully Paid" ~ 0,
-                                    loan_status == "Charged Off" ~ 1,
-                                    loan_status == "In Grace Period" ~ 1,
-                                    loan_status == "Late (31-120 days)" ~ 1,
-                                    loan_status == "Late (16-30 days)" ~ 1,
-                                    loan_status == "Default" ~ 1,
-                                    loan_status == "Does not meet the credit policy. Status:Charged Off" ~ 1
-                                    )) %>% 
-  drop_na(open_acc) %>% 
+lending_loans <- lending_club_loans %>% 
+  mutate(default_loan = case_when(loan_status == "Fully Paid" ~ 0,
+                                  loan_status == "Current" ~ 0,
+                                  loan_status == "Does not meet the credit policy. Status:Fully Paid" ~ 0,
+                                  loan_status == "Charged Off" ~ 1,
+                                  loan_status == "In Grace Period" ~ 1,
+                                  loan_status == "Late (31-120 days)" ~ 1,
+                                  loan_status == "Late (16-30 days)" ~ 1,
+                                  loan_status == "Default" ~ 1,
+                                  loan_status == "Does not meet the credit policy. Status:Charged Off" ~ 1
+                                  )) %>% 
+  drop_na(open_acc) %>% # drop missing values - 29 rows in seven columns
+  select(-c(id, member_id, sub_grade, addr_state, loan_status, url, decs,
+            funded_amnt_inv, pymnt_plan, desc, initial_list_status,
+            last_pymnt_d, next_pymnt_d)) %>% 
+  rename("addr_state" = "state_name")
 
-# there is exactly 29 rows missing in seven columns so we will drop them 
-lending_club_loans <- lending_club_loans %>% 
-  drop_na(open_acc)
+write_csv(lending_loans, "clean_data/lending_club_loans.csv")
+
+unique(lending_club_loans$initial_list_status)
 
 
 
