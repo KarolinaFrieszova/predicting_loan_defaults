@@ -73,6 +73,7 @@ lending_loans <- lending_loans %>%
                                   loan_status == "Default" ~ 1,
                                   loan_status == "Does not meet the credit policy. Status:Charged Off" ~ 1
                                   )) %>% # abstraction: loan status normal = 0, default = 1
+  select(-loan_status) %>% 
   rename("addr_state" = "state_name") %>% 
   mutate(delinq_2yrs = ifelse(delinq_2yrs == 0, 0, 1), # past-due incidences of delinquency in the borrower's credit file for the past two years
          inq_last_6mths  = ifelse(inq_last_6mths == 0, 0, 1),
@@ -91,10 +92,13 @@ lending_loans <- lending_loans %>%
          emp_length = recode(emp_length, "n/a" = "unknown"),
          revol_util = str_remove_all(revol_util, "[%]"), # the amount of credit the borrower is using relative to all available revolving credit
          revol_util = as.numeric(revol_util), # convert to numeric
+         revol_util = coalesce(revol_util, median(revol_util, na.rm = TRUE)), # replace missing values with median
          pub_rec_bankruptcies = as.character(pub_rec_bankruptcies),
          pub_rec_bankruptcies = case_when(pub_rec_bankruptcies == "0" ~ "no", 
                                           pub_rec_bankruptcies == "1" ~ "yes",
                                           pub_rec_bankruptcies == "2" ~ "yes", 
-                                          TRUE ~ "unknown")) # public record bankruptcies
+                                          TRUE ~ "unknown"), # public record bankruptcies
+         install_mth_perc = round((installment * 100) / (annual_inc/12), 2), # monthly expense %
+         )
 
 write_csv(lending_loans, "clean_data/lending_loans.csv")
