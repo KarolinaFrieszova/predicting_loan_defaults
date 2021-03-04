@@ -1,0 +1,168 @@
+---
+title: "Data cleaning and analysis"
+author: "Karolina Frieszova"
+date: "03/03/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# LOAN RISK PREDICTION
+
+## 1. INTRODUCTION
+
+### 1.1 Business Description
+
+LendingClub is US peer-to-peer lending company and the world's largest peer-to-peer lending platform. LendingClub enables borrowers to create unsecured personal loans. Investors are able to search and browse the loan listings on LendingClub website and select loans that they want to invest in based on the information supplied about the borrower. This Internet financial application is a service which directly connects the individual investors and loan borrowers to establish credit relationships and complete the transaction procedures through online platform, without the intermediaries of commercial banks. Investors make money from the interest on these loans. LendingClub makes money by charging borrowers an origination fee and investors a service fee. 
+
+### 1.2 Business Problem
+
+Peer_to_peer online lending platform have brought opportunities to investors, but at the same time, they are also faced with the risk of user loan default, which is related to the sustainable and healthy development of platform. 
+
+The goal of this project is to help LendingClub to understand who is likely to default and who they should lend to in the future.
+
+### 1.3 Data Source
+
+## 2. DATA PREPERATION
+
+### 2.1 Data Introdustion
+
+The raw data from the Lending Club contains 42538 rows and 114 columns. Each observation represents one borrower and her/his information. The personal loans are between $500 to \$35000. The standard loan duration is 3 or 5 years. The period in which loans were funded is Jun 2007 to Dec 2011. The original data-set contains many different variables which Lending Club collects during different stages of loan process. Many of these variables have large amount of missing values or are not interesting for building the loan risk model. 
+
+Our data-set is joined with other two which are adding a state name to the zip code, and reducing 35 risk sub_grades to 7 risk grades.
+
+### 2.2 Data Cleaning
+
+Packages used:
+```{r}
+library(tidyverse)
+library(here)
+library(janitor)
+```
+
+Read in data-sets:
+```{r}
+ # read in data
+grade_info <- read_csv(here("raw_data/grade_info.csv"))
+lcd_dictionary <- read_csv(here("raw_data/LCDataDictionary.csv")) %>% 
+  clean_names()
+lending_club_loans <- read_csv(here("raw_data/lending_club_loans.csv"))
+state_names <- read_csv(here("raw_data/state_names_info.csv"))
+```
+
+Initial variable reduction:
+In dealing with missing values, variables which contained a lot of missing values were removed, also 32 rows as values were missing in these rows over multiple columns. Other missing values were replaced with median imputation. 
+```{r}
+# add seven loan classifiers which indicate different levels of risk and corresponding returns
+lending_club_loans <- left_join(lending_club_loans, grade_info, by = "sub_grade")
+
+# add state names
+lending_club_loans <- left_join(lending_club_loans, state_names, 
+                                by = c("addr_state" = "state_abb"))
+
+# remove columns in which stored value is only NA
+lending_loans <- lending_club_loans %>% 
+  select(-c(total_il_high_credit_limit, mths_since_last_major_derog, num_bc_tl,
+            mths_since_rcnt_il, mths_since_recent_bc, mths_since_recent_bc_dlq, 
+            mths_since_recent_inq, mths_since_recent_revol_delinq, total_bc_limit,
+            total_bal_ex_mort, tot_hi_cred_lim, percent_bc_gt_75, pct_tl_nvr_dlq, 
+            num_tl_120dpd_2m, num_tl_30dpd, num_tl_90g_dpd_24m, num_tl_op_past_12m,
+            num_sats, num_rev_tl_bal_gt_0, num_rev_accts, num_op_rev_tl, num_il_tl,
+            num_bc_sats, num_actv_rev_tl, num_actv_bc_tl, num_accts_ever_120_pd,
+            mort_acc, mo_sin_rcnt_tl, mo_sin_old_il_acct, mo_sin_old_rev_tl_op,
+            mo_sin_rcnt_rev_tl_op, bc_util, bc_open_to_buy, avg_cur_bal, 
+            acc_open_past_24mths, inq_last_12m, total_cu_tl, total_rev_hi_lim,
+            inq_fi, all_util, max_bal_bc, open_rv_24m, open_rv_12m, il_util,
+            total_bal_il, open_il_24m, open_il_12m, open_il_6m, open_acc_6m,
+            tot_cur_bal, tot_coll_amt, verification_status_joint, dti_joint, 
+            annual_inc_joint))
+
+# remove data-sets
+rm(grade_info, state_names, lending_club_loans)
+
+# further column reduction
+lending_loans <- lending_loans %>% 
+  select(-c(id, member_id, url, desc, last_pymnt_d, last_pymnt_amnt, last_credit_pull_d, # unrequited
+            sub_grade, addr_state, # replaced with abbreviation
+            tax_liens, # only one different value
+            policy_code, # only policy code = 1 or NA, no policy code = 2
+            initial_list_status, # False, NA
+            collections_12_mths_ex_med, chargeoff_within_12_mths, # 0, NA 
+            title, # high correlation with purpose
+            emp_title, next_pymnt_d, # high cardinalty and a lot missing 
+            zip_code, earliest_cr_line, # high cardinalty, not required
+            funded_amnt, funded_amnt_inv, # highly correlated with loan_amount
+            pymnt_plan, # only one True value - rest False
+            total_pymnt_inv, # highly correlated with total_pymnt
+            acc_now_delinq, # 4 rows = 1 all have loan_status = fully paid
+            delinq_amnt, # 2 rows with loan_status = fully paid
+            application_type, # all applications are individual
+            mths_since_last_delinq, # 63.3 % missing values
+            mths_since_last_record, # 91.4% missing vales
+            out_prncp_inv, # highly correlated with out_prncp
+            last_fico_range_low, # highly correlated with last_fico_range_high
+            total_rec_prncp # highly correlated with total_pymnt (principal is the amount you borrowed without interest)
+            )) %>% 
+  drop_na(open_acc) # remove 32 rows as this rows are missing across multiple columns
+```
+
+Feature engineering: 
+Target variable in the model is loan_status. There are 9 different values. Since the goal is to try to understand if borrower is going to repay loan or not, this variable will be changed so it include only two values representing the possibilities. 
+
+```{r}
+lending_loans <- lending_loans %>% 
+  mutate(default_loan = case_when(loan_status == "Fully Paid" ~ F,
+                                  loan_status == "Current" ~ F,
+                                  loan_status == "Does not meet the credit policy. Status:Fully Paid" ~ F,
+                                  loan_status == "Charged Off" ~ T,
+                                  loan_status == "In Grace Period" ~ T,
+                                  loan_status == "Late (31-120 days)" ~ T,
+                                  loan_status == "Late (16-30 days)" ~ T,
+                                  loan_status == "Default" ~ T,
+                                  loan_status == "Does not meet the credit policy. Status:Charged Off" ~ T
+                                  )) %>% # abstraction: loan status normal = F, default = T
+  select(-loan_status) %>% 
+  rename("addr_state" = "state_name") %>% 
+  mutate(delinq_2yrs = ifelse(delinq_2yrs == 0, F, T), # past-due incidences of delinquency in the borrower's credit file for the past two years
+         inq_last_6mths  = ifelse(inq_last_6mths == 0, F, T),
+         pub_rec = ifelse(pub_rec == 0, F, T), # derogatory public records
+         out_prncp = ifelse(out_prncp == 0, F, T), # Remaining outstanding principal for total amount funded
+         total_rec_late_fee = ifelse(total_rec_late_fee == 0, F, T), # Late fees received to date
+         recoveries = ifelse(recoveries == 0, F, T), # post charge off gross recovery
+         collection_recovery_fee = ifelse(collection_recovery_fee == 0, F, T), # post charge off collection fee
+         int_rate_pct = str_remove_all(int_rate, "[%]"),
+         int_rate_pct = as.numeric(int_rate_pct), # convert interest rate to numeric
+         issue_d = str_remove_all(issue_d, "[0-9-]"), # remove year, leave month
+         issue_d = case_when(issue_d %in% c("Jan", "Feb", "Mar") ~ "Q1",
+                             issue_d %in% c("Apr", "May", "Jun") ~ "Q2",
+                             issue_d %in% c("Jul", "Aug", "Sep") ~ "Q3",
+                             issue_d %in% c("Oct", "Nov", "Dec") ~ "Q4"),
+         emp_length = recode(emp_length, "n/a" = "unknown"), # convert missing values to 'unknown'
+         addr_state = coalesce(addr_state, "unknown"),
+         revol_util_pct = str_remove_all(revol_util, "[%]"), # the amount of credit the borrower is using relative to all available revolving credit
+         revol_util_pct = as.numeric(revol_util_pct), # convert to numeric
+         revol_util_pct = coalesce(revol_util, median(revol_util, na.rm = TRUE)), # replace missing values with median
+         pub_rec_bankruptcies = as.character(pub_rec_bankruptcies),
+         pub_rec_bankruptcies = case_when(pub_rec_bankruptcies == "0" ~ "no", 
+                                          pub_rec_bankruptcies == "1" ~ "yes",
+                                          pub_rec_bankruptcies == "2" ~ "yes", 
+                                          TRUE ~ "unknown"), # public record bankruptcies
+         install_mth_pct = round((installment * 100) / (annual_inc/12), 2), # monthly installment expense %
+         fico_range_avg = (fico_range_low + fico_range_high) / 2
+         ) %>% 
+  mutate_if(is_character, as_factor) %>% 
+  select(-c(collection_recovery_fee, int_rate, revol_util, fico_range_low, fico_range_high))
+
+```
+
+Check for aliases in the independent variables:
+```{r}
+alias(default_loan ~ ., data = lending_loans)
+```
+Check correlation between the features to decide which variables to include in the model. As we can see there is a strong positive correlation between loan amount and three other variables (investment (0.93), total_pymnt (0.88), and total_rec_int (0.73)), therefore, they can be excluded from our model.  
+```{r}
+cor(lending_loans[, sapply(lending_loans, class) == "numeric"])
+```
+
