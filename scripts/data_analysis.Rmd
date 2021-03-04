@@ -2,11 +2,22 @@
 title: "Data cleaning and analysis"
 author: "Karolina Frieszova"
 date: "03/03/2021"
-output: html_document
+output:
+  html_document:
+    code_folding: hide
 ---
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+library(dplyr, warn.conflicts = FALSE)
+# Suppress summarise info
+options(dplyr.summarise.inform = FALSE)
+
+iris %>% 
+  group_by(Species) %>% 
+  summarise(
+    Sepal.Length.mean = mean(Sepal.Length)
+  )
 ```
 
 # LOAN RISK PREDICTION
@@ -29,39 +40,39 @@ The goal of this project is to help LendingClub to understand who is likely to d
 
 ### 2.1 Data Introdustion
 
-The raw data from the Lending Club contains 42538 rows and 114 columns. Each observation represents one borrower and her/his information. The personal loans are between $500 to \$35000. The standard loan duration is 3 or 5 years. The period in which loans were funded is Jun 2007 to Dec 2011. The original data-set contains many different variables which Lending Club collects during different stages of loan process. Many of these variables have large amount of missing values or are not interesting for building the loan risk model. 
+The raw data from the LendingClub contains 42538 rows and 114 columns. Each observation represents one borrower and her/his information. The personal loans are between $500 to \$35000. The standard loan duration is 3 or 5 years. The period in which loans were funded is Jun 2007 to Dec 2011. The original data-set contains many different variables which LendingClub collects during different stages of loan process. Many of these variables have large amount of missing values or are arbitrary to building the loan risk model. 
 
-Our data-set is joined with other two which are adding a state name to the zip code, and reducing 35 risk sub_grades to 7 risk grades.
+Our data-set is joined with two data-sets that added a state name to the zip code, and reduced risk grading system from 35 grades to 7.
 
 ### 2.2 Data Cleaning
 
-##### Packages used:
-```{r}
+##### Packages used
+```{r message=FALSE, echo=TRUE,cache=FALSE, results=TRUE, warning=FALSE, comment=FALSE, warning=FALSE}
 library(tidyverse)
 library(here)
 library(janitor)
 ```
 
-##### Read in data-sets:
-```{r}
+##### Reading in data and joing tables
+```{r message=FALSE, echo=TRUE,cache=FALSE, results=TRUE, warning=FALSE, comment=FALSE, warning=FALSE}
  # read in data
 grade_info <- read_csv(here("raw_data/grade_info.csv"))
 lcd_dictionary <- read_csv(here("raw_data/LCDataDictionary.csv")) %>% 
   clean_names()
 lending_club_loans <- read_csv(here("raw_data/lending_club_loans.csv"))
 state_names <- read_csv(here("raw_data/state_names_info.csv"))
-```
 
-##### Initial variable reduction:
-In dealing with missing values, variables which contained a lot of missing values were removed, along with 32 observations which were missing across multiple columns. Other missing values were replaced with median imputation. 
-```{r}
 # add seven loan classifiers which indicate different levels of risk and corresponding returns
 lending_club_loans <- left_join(lending_club_loans, grade_info, by = "sub_grade")
 
 # add state names
 lending_club_loans <- left_join(lending_club_loans, state_names, 
                                 by = c("addr_state" = "state_abb"))
+```
 
+##### Initial variable reduction
+In dealing with missing values, variables which contained a lot of missing values were removed, along with 32 observations that were missing across multiple columns. Other missing values were replaced with median imputation. 
+```{r}
 # remove columns in which stored value is only NA
 lending_loans <- lending_club_loans %>% 
   select(-c(total_il_high_credit_limit, mths_since_last_major_derog, num_bc_tl,
@@ -108,24 +119,21 @@ lending_loans <- lending_loans %>%
   drop_na(open_acc) # remove 32 rows as this rows are missing across multiple columns
 ```
 
-#### Feature engineering: 
+##### Feature engineering
 
-Target variable in the model is loan_status. There are 9 different values. Here are the values explained:
-*Current:* Loan is up to date on all outstanding payments. 
-*In Grace Period:* Loan is past due but within the 15-day grace period. 
-*Fully paid:* Loan has been fully repaid, either at the expiration of the 3- or 5-year year term or as a result of a prepayment.
-*Default:* Loan has not been current for an extended period of time.
-*Charged Off:* Loan for which there is no longer a reasonable expectation of further payments. 
-*Late (16-30):* Loan has not been current for 16 to 30 days. 
-*Late (31-120):* Loan has not been current for 31 to 120 days.
+Target variable in our model is loan_status. The feature has 9 different values. Here they are explained:
+
+- *Current:* Loan is up to date on all outstanding payments. 
+- *In Grace Period:* Loan is past due but within the 15-day grace period. 
+- *Fully paid:* Loan has been fully repaid, either at the expiration of the 3- or 5-year year term or as a result of a prepayment.
+- *Default:* Loan has not been current for an extended period of time.
+- *Charged Off:* Loan for which there is no longer a reasonable expectation of further payments. 
+- *Late (16-30):* Loan has not been current for 16 to 30 days. 
+- *Late (31-120):* Loan has not been current for 31 to 120 days.
+
 For this analysis we are going to keep only observations where loan status contains values "Fully Paid" or "Charred Off". Since our goal is to try to understand if borrower is going to repay loan or not. We encode the variable so it represent only our two possibilities (1 for Fully Paid and 0 for Charged Off). As result our data-set will be reduced by 547 observations to 41959 in total. 
 
-```{r}
-lending_loans %>% 
-  group_by(loan_status) %>% 
-  summarise(count = n()) %>% 
-  arrange(desc(count))
-```
+Further, our data-set have categorical variables containing many multiple labels. Then by using one hot encoding, we will expand the feature space dramatically. For this reason, the cardinally of some variables was reduced. 
 
 ```{r}
 lending_loans <- lending_loans %>% 
@@ -144,13 +152,14 @@ lending_loans <- lending_loans %>%
          recoveries = ifelse(recoveries == 0, F, T), # post charge off gross recovery
          collection_recovery_fee = ifelse(collection_recovery_fee == 0, F, T), # post charge off collection fee
          int_rate_pct = str_remove_all(int_rate, "[%]"),
+         home_ownership = recode(home_ownership, "NONE" = "OTHER"),
          int_rate_pct = as.numeric(int_rate_pct), # convert interest rate to numeric
          issue_d = str_remove_all(issue_d, "[0-9-]"), # remove year, leave month
-         issue_d = case_when(issue_d %in% c("Jan", "Feb", "Mar") ~ "Q1",
-                             issue_d %in% c("Apr", "May", "Jun") ~ "Q2",
-                             issue_d %in% c("Jul", "Aug", "Sep") ~ "Q3",
-                             issue_d %in% c("Oct", "Nov", "Dec") ~ "Q4"),
-         emp_length = recode(emp_length, "n/a" = "unknown"), # convert missing values to 'unknown'
+         emp_length = case_when(emp_length == "10+ years" ~ "10+ years",
+                                emp_length %in% c("9 years", "8 years", "7 years", "6 years") ~ "above 5 years",
+                                emp_length %in% c("5 years", "4 years", "3 years", "2 years") ~ "2 - 5 years",
+                                emp_length %in% c("1 year", "< 1 year") ~ "1 and under",
+                                emp_length == "n/a" ~ "unknows"),
          addr_state = coalesce(addr_state, "unknown"),
          revol_util_pct = str_remove_all(revol_util, "[%]"), # the amount of credit the borrower is using relative to all available revolving credit
          revol_util_pct = as.numeric(revol_util_pct), # convert to numeric
@@ -164,24 +173,60 @@ lending_loans <- lending_loans %>%
          fico_range_avg = (fico_range_low + fico_range_high) / 2
          ) %>% 
   mutate_if(is_character, as_factor) %>% 
-  select(-c(collection_recovery_fee, int_rate, revol_util, fico_range_low, fico_range_high))
+  select(-c(collection_recovery_fee, int_rate, revol_util, fico_range_low, fico_range_high, issue_d, addr_state))
 
 ```
+
+The features related to the past incidences of delinquency, number of inquiries in past 6 months, number of derogatory public records, late fees received to date, and post charge off gross recovery were converted to the logical variable. As the common number of incidences was one or two. These values were assigned TRUE and where there were no record FALSE was assigned. Next, the missing values in Revolving line utilization rate were replaced with median imputation. And lastly, a feature was created that represents the monthly employment expense of the user's repayment expense as a percentage of monthly salary. 
+
+Also, after closer analysis, I identified that we can't draw any strong conclusions of whether the 'Charge Off' is affected by the state variable, so we won't be adding 'addr_state' to our model. The same applies for the issue date.
 
 ## 3. EXPLANATORY ANALYSIS
 
-Check for aliases in the independent variables:
+After data cleaning, we can start with exploratory analysis on our narrowed feature selection. The main purpose of exploratory analysis is to help look at data before making any assumptions. It is one of the most important steps before building a model in order to identify obvious errors, as well as better understand patterns within the data, detect outliers or find interesting relations among the variables.
+
+##### Distribution of Loans by Purpose of Loan
+
+First we can look at the distribution of loans by the purpose. There are 14 different factors for this variable. For example, 46% of the loans were taken for debt_consolidation and 16% of them were not fully paid. In comparison to loans for 'small businesses', these loans make not even 5% but 28% of them were not fully paid. Therefore, can can assume that there may be some relationship between the target variable and the purpose. 
+
 ```{r}
-alias(loan_status ~ ., data = lending_loans)
+# investigate the amount of charged off loans by purpose category
+lending_loans %>% 
+  filter(loan_status == F) %>% 
+  group_by(purpose) %>% 
+  summarise(count = n()) %>% 
+  ggplot(aes(x = reorder(purpose, count), y = count))+
+  geom_col()+
+  coord_flip()+
+  labs(title = "The Amount of Charged-Off Loans by Purpose Category",
+       y = "Frequency",
+       x = "Purpose")
 ```
 
-Check correlation between the features to decide which variables to include in the model. As we can see there is a strong positive correlation between loan amount and three other variables (installment (0.93), total_pymnt (0.88), and total_rec_int (0.73)), therefore, they can be excluded from our model. 
+```{r}
+# percentage loans by purpose category and Loan status
+lending_loans %>% 
+  group_by(purpose, loan_status) %>% 
+  summarise(purchase_count = n()) %>% 
+  mutate(pct = round(purchase_count * 100 / sum(purchase_count))) %>%
+  ggplot(aes(x = purpose, y = pct, fill = loan_status))+
+  geom_col()+
+  coord_flip()+
+  labs(title = "The Percentage of Loans by Purpose Category and Loan Status",
+       y = "Frequency",
+       x = "Purpose",
+       fill = "Fully Paid")
+```
 
 ```{r}
-cor(lending_loans[, sapply(lending_loans, class) == "numeric"])
+# add some categories together to minimise the categorical labels
 lending_loans <- lending_loans %>% 
-  select(-c(installment , total_pymnt, total_rec_int))
+  mutate(purpose = case_when(purpose %in% c("home_improvement", "house") ~ "house related",
+                             purpose %in% c("vacation", "wedding", "car", "major_purchase") ~ "personal",
+                             T ~ as.character(purpose)))
 ```
+
+##### Annual Income
 
 Summary statistics of annual income. We can see that there are few outliers. However, we won't be dealing with them as after closer inspection we could we that our two borrowers with highest annual income took loan for home improvements and it was fully paid so we can well assume that this was the case.
 ```{r}
@@ -194,12 +239,11 @@ lending_loans %>%
   labs(title = "Annual income",
        y = "Frequency",
        x = "Annual income (unit 1000)")
-
-lending_loans %>% 
-  select(annual_inc, loan_amnt, purpose, loan_status) %>% 
-  filter(annual_inc > 3000000)
 ```
+##### Distribution of Loans by Grading Score
+
 Distribution of loans by grading system is another information that can be beneficial for LendingClub. Loan grading is a classification system that involves assigning a quality score to a loan based on a borrower's credit history, quality of the collateral, and the likelihood of repayment of the principal and interest. I have calculated the percentage of each grading for two loan statuses. We can see that the proportion of loans that are not fully paid increases for poorer risk grades.
+
 ```{r}
 lending_loans %>% 
   select(grade, loan_status) %>% 
@@ -219,10 +263,28 @@ lending_loans %>%
   ggplot(aes(x = fico_range_avg, fill = loan_status))+
   geom_histogram(position = "dodge")+
   labs(title = "Distribution of Loans by Grading System and Loan Status",
-       legend = "Fully Paid",
-       y = )
+       legend = "Fully Paid")
 
 unique(lending_loans$fico_range_avg)
+```
+
+
+Check for aliases in the independent variables:
+```{r}
+alias(loan_status ~ ., data = lending_loans)
+```
+
+Check correlation between the features to decide which variables to include in the model. As we can see there is a strong positive correlation between loan amount and three other variables (installment (0.93), total_pymnt (0.88), and total_rec_int (0.73)), therefore, they can be excluded from our model. 
+
+```{r}
+cor(lending_loans[, sapply(lending_loans, class) == "numeric"])
+lending_loans <- lending_loans %>% 
+  select(-c(installment , total_pymnt, total_rec_int))
+```
+
+
+```{r}
+
 ```
 
 ```{r}
@@ -231,19 +293,16 @@ loans_numeric <- lending_loans %>%
   select_if(is.numeric)
 
 loans_nonnumeric <- lending_loans %>%
-  select_if(function(x) !is.numeric(x)) %>% 
-  select(-addr_state)
+  select_if(function(x) !is.numeric(x))
 
-loans_numeric$paid_loan <- lending_loans$paid_loan
+loans_numeric$loan_status <- lending_loans$loan_status
 
 names(loans_nonnumeric)
 nonnumeric_1 <- loans_nonnumeric %>% 
-  select(paid_loan, term, verification_status, out_prncp, pub_rec_bankruptcies)
+  select(loan_status, term, verification_status, out_prncp, pub_rec_bankruptcies)
 
-ggpairs(nonnumeric_1)
+#ggpairs(nonnumeric_1)
 ```
 
-```{r}
-ggsave("nonnumerical.png")
-```
+
 
