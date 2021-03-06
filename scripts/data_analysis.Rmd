@@ -51,6 +51,10 @@ Our data-set is joined with two data-sets that added a state name to the zip cod
 library(tidyverse)
 library(here)
 library(janitor)
+library(broom)
+library(Boruta)
+library(pROC)
+library(modelr)
 ```
 
 ##### Reading in data and joing tables
@@ -68,6 +72,7 @@ lending_club_loans <- left_join(lending_club_loans, grade_info, by = "sub_grade"
 # add state names
 lending_club_loans <- left_join(lending_club_loans, state_names, 
                                 by = c("addr_state" = "state_abb"))
+
 ```
 
 ##### Initial variable reduction
@@ -142,12 +147,11 @@ lending_loans <- lending_loans %>%
                                  loan_status == "Does not meet the credit policy. Status:Fully Paid" ~ T,
                                  loan_status == "Charged Off" ~ F,
                                  loan_status == "Does not meet the credit policy. Status:Charged Off" ~ F
-                                 )) %>% # abstraction: loan status paid = 1, charged off = 0
+  )) %>% # abstraction: loan status paid = 1, charged off = 0
   rename("addr_state" = "state_name") %>% 
   mutate(delinq_2yrs = ifelse(delinq_2yrs == 0, F, T), # past-due incidences of delinquency in the borrower's credit file for the past two years
          inq_last_6mths  = ifelse(inq_last_6mths == 0, F, T),
          pub_rec = ifelse(pub_rec == 0, F, T), # derogatory public records
-         out_prncp = ifelse(out_prncp == 0, F, T), # Remaining outstanding principal for total amount funded
          total_rec_late_fee = ifelse(total_rec_late_fee == 0, F, T), # Late fees received to date
          recoveries = ifelse(recoveries == 0, F, T), # post charge off gross recovery
          collection_recovery_fee = ifelse(collection_recovery_fee == 0, F, T), # post charge off collection fee
@@ -170,14 +174,13 @@ lending_loans <- lending_loans %>%
                                           pub_rec_bankruptcies == "2" ~ "yes", 
                                           TRUE ~ "unknown"), # public record bankruptcies
          install_mth_pct = round((installment * 100) / (annual_inc/12), 2), # monthly installment expense %
-         fico_range_avg = (fico_range_low + fico_range_high) / 2
-         ) %>% 
+         fico_range_avg = (fico_range_low + fico_range_high) / 2,
+         term_36 = ifelse(term == "36 months", T, F)) %>% # if it is not 36, we know it will be 60 months
   mutate_if(is_character, as_factor) %>% 
-  select(-c(collection_recovery_fee, int_rate, revol_util, fico_range_low, fico_range_high, issue_d, addr_state))
-
+  select(-c(collection_recovery_fee, int_rate, revol_util, fico_range_low, fico_range_high, issue_d, addr_state, out_prncp, last_fico_range_high, term))
 ```
 
-The features related to the past incidences of delinquency, number of inquiries in past 6 months, number of derogatory public records, late fees received to date, and post charge off gross recovery were converted to the logical variable. As the common number of incidences was one or two. These values were assigned TRUE and where there were no record FALSE was assigned. Next, the missing values in Revolving line utilization rate were replaced with median imputation. And lastly, a feature was created that represents the monthly employment expense of the user's repayment expense as a percentage of monthly salary. 
+The features related to the past incidences of delinquency, number of inquiries in past 6 months, number of derogatory public records, late fees received to date, and post charge off gross recovery were converted to the logical variable. As the common number of incidences was one or two. These values were assigned TRUE and where there were no record FALSE was assigned. Next, the missing values in Revolving line utilization rate were replaced with median imputation. And lastly, a feature was created that represents the monthly employment expense of the user's repayment expense as a percentage of monthly salary. We removed variable 'out_prncp' as it doesn't store any values for Fully Paid or Charged Off.
 
 Also, after closer analysis, I identified that we can't draw any strong conclusions of whether the 'Charge Off' is affected by the state variable, so we won't be adding 'addr_state' to our model. The same applies for the issue date.
 
@@ -223,7 +226,8 @@ lending_loans %>%
 lending_loans <- lending_loans %>% 
   mutate(purpose = case_when(purpose %in% c("home_improvement", "house") ~ "house related",
                              purpose %in% c("vacation", "wedding", "car", "major_purchase") ~ "personal",
-                             T ~ as.character(purpose)))
+                             T ~ as.character(purpose)),
+         purpose = as.factor(purpose))
 ```
 
 ##### Annual Income
@@ -264,45 +268,258 @@ lending_loans %>%
   geom_histogram(position = "dodge")+
   labs(title = "Distribution of Loans by Grading System and Loan Status",
        legend = "Fully Paid")
-
-unique(lending_loans$fico_range_avg)
 ```
-
 
 Check for aliases in the independent variables:
 ```{r}
 alias(loan_status ~ ., data = lending_loans)
 ```
-
 Check correlation between the features to decide which variables to include in the model. As we can see there is a strong positive correlation between loan amount and three other variables (installment (0.93), total_pymnt (0.88), and total_rec_int (0.73)), therefore, they can be excluded from our model. 
 
 ```{r}
+# check correlation between numeric features
 cor(lending_loans[, sapply(lending_loans, class) == "numeric"])
+# remove variables
 lending_loans <- lending_loans %>% 
   select(-c(installment , total_pymnt, total_rec_int))
 ```
 
+## 4. MODEL BUILDING
+
+##### Feature selection
+
+After we have cleaned and analysed data, we can conclude which features we believe to be important in the model. It is considered a good practice to identify which features are important when building predictive models. Now, let's use an automated feature selection process called Boruta. It is a feature ranking and selection algorithm based on random forests algorithm. The advantage with Boruta is that it clearly decides if a variable is important or not and helps to select variables that are statistically significant. 
+
+```{r}
+boruta_output <- Boruta(loan_status ~ ., data = lending_loans, doTrace = 0, maxRuns = 100)  
+```
+
+Boruta performed 19 iterations in 33.35373 mins. 22 attributes were confirmed important and no attributes deemed unimportant.
+```{r}
+print(boruta_output)
+```
+
+We can also plot importance history. If the importance value falls within the blue lines that is more likely to be unimportant attribute. And in the green we have confirmed important attributes. 
+Our graph has three blue lines with rest being green.
+```{r}
+plotImpHistory(boruta_output)
+```
+```{r}
+# statistical significance decision column
+attStats(boruta_output)
+```
+##### Data Spliting
+
+Before building the model we need to split our data into training and test set. The best way to split our data into training and test set is by cross-validation method that uses multiple test sets. However, cross-validation method is very time consuming process. For this reason, in this project, I have decided to use single test set method where I split data-set into training set (70%) and test set (30%).
+
+```{r}
+# Splitting data set into training and test set
+set.seed(42) # making results reproducible
+
+test_indices <- sample(1:nrow(lending_loans), size = as.integer(nrow(lending_loans) * 0.3))
+
+train <- lending_loans %>%
+  slice(-test_indices)
+
+test <- lending_loans %>%
+  slice(test_indices)
+
+# sanity check
+nrow(train) + nrow(test) == nrow(lending_loans)
+```
+
+Check the distribution of outcome in the training and testing sets to see that they are roughly comparable
+
+```{r}
+# check the distribution of outcome in the training and testing
+train %>%
+  tabyl(loan_status)
+
+test %>%
+  tabyl(loan_status)
+```
+Very good results, we have close percentage of both values in raining and testing sets.
+
+We have carried out automated feature selection and did data analysis so we insert our predictors into the model.
+
+##### Logistic regression
+
+```{r}
+# logistic regression with all predictors
+logistic_regressor <- glm(loan_status ~ ., data = train, family = binomial(link = "logit"))
+summary(logistic_regressor)
+```
+
+AUC:
+```{r}
+roc_train <- train %>%
+  add_predictions(logistic_regressor, type = "response") %>%
+  roc(response = loan_status, predictor = pred)
+
+auc(roc_train) # 0.9294
+
+roc_test <- test %>%
+  add_predictions(logistic_regressor, type = "response") %>%
+  roc(response = loan_status, predictor = pred)
+
+auc(roc_test) # 0.9271
+```
+Our model has high AUC.
+
+
+Plotting the ROC-curve:
+```{r}
+all_loans_pred <- test %>% # ????? do we use whole datset or test?? in notes whole but why
+  add_predictions(logistic_regressor, type = "response")
+
+roc_all_pred <- all_loans_pred %>%
+  roc(response = loan_status, predictor = pred)
+
+roc_curve <- ggroc(data = roc_all_pred, legacy.axes = TRUE) +
+  coord_fixed()
+
+roc_curve
+```
+```{r}
+classifier_data <- tibble(
+  threshold = roc_all_pred$thresholds,
+  sensitivity = roc_all_pred$sensitivities,
+  specificity = roc_all_pred$specificities
+)
+
+head(classifier_data)
+```
+```{r}
+auc(roc_all_pred)
+```
+
+Check model for performance:
+```{r}
+library(caret)
+
+lending_loans %>%
+  mutate_if(is.logical, as.factor)
+
+lending_loans %>% 
+  select(is.logical)
+
+lending_loans_c <- lending_loans %>% 
+  mutate(loan_status = as_factor(if_else(loan_status, "t", "f"))) %>%
+  mutate(delinq_2yrs = as_factor(if_else(delinq_2yrs, "t", "f"))) %>% 
+  mutate(inq_last_6mths = as_factor(if_else(inq_last_6mths, "t", "f"))) %>%
+  mutate(pub_rec = as_factor(if_else(pub_rec, "t", "f"))) %>% 
+  mutate(total_rec_late_fee = as_factor(if_else(total_rec_late_fee, "t", "f"))) %>%
+  mutate(recoveries = as_factor(if_else(recoveries, "t", "f"))) %>% 
+  mutate(term_36 = as_factor(if_else(term_36, "t", "f")))
+
+train_control <- trainControl(method = "repeatedcv", 
+                              number = 5,
+                              repeats = 10,
+                              savePredictions = TRUE, 
+                              classProbs = TRUE, 
+                              summaryFunction = twoClassSummary)
+
+model <- train(loan_status ~ .,
+               data = lending_loans_c,
+               trControl = train_control,
+               method = "glm",
+               family = binomial(link = 'logit'))
+```
+```{r}
+summary(model)
+```
+
+
+```{r}
+model$results
+```
+
+
+
 
 ```{r}
 
 ```
 
+
 ```{r}
-library(GGally)
-loans_numeric <- lending_loans %>%
-  select_if(is.numeric)
+library(glmulti)
 
-loans_nonnumeric <- lending_loans %>%
-  select_if(function(x) !is.numeric(x))
+glmulti_search_all_loans <- glmulti(
+  loan_status ~ ., 
+  data = train,
+  level = 1,               # Interactions considered
+  method = "g",            # "g" the genetic algorithm (recommended for large sets)
+  crit = "bic",            # BIC as criteria
+  confsetsize = 10,        # Keep 10 best models
+  plotty = F, 
+  report = T,              # No plots, but provide interim reports
+  fitfunction = "glm",     # glm function
+  family = binomial(link = "logit")) # binomial family for logistic regression
 
-loans_numeric$loan_status <- lending_loans$loan_status
-
-names(loans_nonnumeric)
-nonnumeric_1 <- loans_nonnumeric %>% 
-  select(loan_status, term, verification_status, out_prncp, pub_rec_bankruptcies)
-
-#ggpairs(nonnumeric_1)
+summary(glmulti_search_all_loans)
 ```
 
+##### Random Forest Model
+
+```{r}
+library(randomForest)
+set.seed(32)
+
+loans_23 <- randomForest(loan_status ~ ., data = train)
+```
+This model is based on 23 variables. The number of trees in random forest is 500 and number of variables tried at each split is 7. This model explains 70.89%. 
+```{r}
+loans_23
+# missing estimate error and confusion matrix
+```
+
+##### Predistions and Confustion Matrix - Test
+
+```{r}
+
+prediction_for_table <- predict(loans_23)
+table(predicted=prediction_for_table)
+library(modelr)
+
+# add the predictions
+test_pred <- test %>%
+  add_predictions(lending_loans, type = "response")
+
+library(yardstick)
+
+conf_mat <- test_pred %>%
+  conf_mat(truth = loan_status, estimate = pred)
+
+conf_mat
+
+library(mlbench)
+library(caret)
+set.seed(42)
+inp <- sample(2, nrow(lending_loans), replace = T, prob = c(0.7, 0.3))
+ttrain <- lending_loans[inp == 1,]
+ttest <- lending_loans[inp == 2,]
+pred <- predict(loans_23, ttest)
 
 
+
+confusionMatrix(p, ttest$loan_status)
+pred <- format(round(predict(loans_23,test)))            
+
+confusionMatrix(table(factor(p, levels=min(test):max(test)),
+                      factor(test, levels=min(test):max(test))))
+
+a <- table(factor(pred, levels=min(test):max(test)), 
+      factor(test, levels=min(test):max(test)))
+
+
+loans_23 <- lending_loans %>% 
+  add_predictions(loans_23, type = "response")
+
+threshold <- 0.6 # set by us
+loans_23 <- loans_23 %>% 
+  mutate(pred_cut_off = pred >= threshold)
+
+loans_23 %>% 
+  tabyl(loan_status, pred_cut_off)
+```
