@@ -1,5 +1,5 @@
 ---
-title: "Data cleaning and analysis"
+title: "Predicting Loan Defaults"
 author: "Karolina Frieszova"
 date: "03/03/2021"
 output:
@@ -20,37 +20,38 @@ iris %>%
   )
 ```
 
-# LOAN RISK PREDICTION
 
 ## 1. INTRODUCTION
 
-### 1.1 Business Description
+### 1.1 Business Understanding
 
-LendingClub is a US peer-to-peer lending company and the world's largest peer-to-peer lending platform. LendingClub enables borrowers to create unsecured personal loans. Investors can search and browse the loan listings on the LendingClub website and select loans that they want to invest in based on the information supplied about the borrower. This is an Internet financial application service that directly connects individual investors and loan borrowers to establish credit relationships and complete the transaction procedures through an online platform, without the intermediaries of commercial banks. Investors make money from the interest on these loans. LendingClub makes money by charging borrowers an origination fee and investors a service fee. 
+LendingClub is a US peer-to-peer lending company and the world's largest peer-to-peer lending platform. LendingClub enables borrowers to create unsecured personal loans. Investors can search and browse the loan listings on the LendingClub website and select loans that they want to invest in based on the information supplied about the borrower. It is an online financial application service that directly connects individual investors and loan borrowers to establish credit relationships and complete the transaction procedures through an online platform, without the intermediaries of commercial banks. Investors make money from the interest on these loans. LendingClub makes money by charging borrowers an origination fee and investors a service fee. 
 
 ### 1.2 Business Problem
 
-Peer_to_peer online lending platforms have brought opportunities to investors, but at the same time, they are also faced with the risk of user loan default, which is related to the sustainable and healthy development of the platform.
+Peer_to_peer online lending platform has brought opportunities to investors, but at the same time, investors are also faced with the risk of user loan default, which is related to the sustainable and healthy development of the LendingClub platform.
 
-The goal of this project is to help LendingClub to: 
-1. understand which borrowers are likely not to pay off their loan, and 
-2. predict who is likely to pay off their loan in the future.
+### 1.3 Project Goal
 
-### 1.3 Data Source
+The goal of this project is to help LendingClub to understand which borrowers are likely not to pay off their loan, and predict who is likely to pay off their loan in the future.
+
+### 1.4 Data Source
 
 Data-set used contains historical data from LendingClub. The data is openly available on their website.
 
-### 1.4 References
+### 1.5 References
 
 Original Data Source [LendingClub website](https://www.lendingclub.com/investing/peer-to-peer)
+
 General information about business [Wikipedia page](https://en.wikipedia.org/wiki/LendingClub)
+
 Different loan statuses explained [LendingClub HelpPage](https://help.lendingclub.com/hc/en-us/articles/215488038-What-do-the-different-Note-statuses-mean-?fbclid=IwAR0DVRxmLkmOGPSwOz0FpWiJJBRNE2KuW0lvnbp5Mq7d9cZHy6g7dOcKMOk)
 
-### 1.5 Method
+### 1.6 Method
 
 To build the predictive model I used supervised machine learning method (making predictions from labeled data), specifically, a logistic regression algorithm as a classifier for loan status. 
 
-Logistic regression is a statistical model that in its basic form uses a logistic function to model a binary dependent variable with two possible values, such as pass/fail.
+Logistic regression is a statistical model that in its basic form uses a logistic function to model a binary dependent variable with two possible values, such as loan paid or loan charged-off.
 
 ## 2. DATA PREPERATION
 
@@ -58,13 +59,13 @@ Logistic regression is a statistical model that in its basic form uses a logisti
 
 The raw data from the LendingClub contains 42538 rows and 114 columns. Each observation represents one borrower and her/his information. The personal loans are between $500 to \$35000. The standard loan duration is 3 or 5 years. The period in which loans were funded is Jun 2007 to Dec 2011. 
 
-The original data-set contains many different variables that LendingClub collects during different stages of the loan process. Many of these variables have large amounts of missing values or are arbitrary to building the loan risk model. In this original data-set, there was one duplicate row that is no present after the data cleaning. 
+The original data-set contains many different variables that LendingClub collects during different stages of the loan process. Many of these variables have large amounts of missing values or are arbitrary to building predictive loan risk model. In this original data-set, there was one duplicate row that is no present after the data cleaning process. 
  
 Our data-set is joined with two data-sets that added a state name to the zip code and reduced the risk grading system from 35 grades to 7.
 
 ### 2.2 Data Cleaning
 
-##### Packages used
+#### 2.2.1 Packages used
 ```{r message=FALSE, echo=TRUE,cache=FALSE, results=TRUE, warning=FALSE, comment=FALSE, warning=FALSE}
 library(tidyverse)
 library(here)
@@ -75,7 +76,7 @@ library(modelr)
 library(glmulti)
 ```
 
-##### Reading in data and joing tables
+#### 2.2.2 Reading in data and joing tables
 ```{r message=FALSE, echo=TRUE,cache=FALSE, results=TRUE, warning=FALSE, comment=FALSE, warning=FALSE}
  # read in data
 grade_info <- read_csv(here("raw_data/grade_info.csv"))
@@ -90,10 +91,9 @@ lending_club_loans <- left_join(lending_club_loans, grade_info, by = "sub_grade"
 # add state names
 lending_club_loans <- left_join(lending_club_loans, state_names, 
                                 by = c("addr_state" = "state_abb"))
-
 ```
 
-##### Initial variable reduction
+#### 2.2.3 Initial variable reduction
 In dealing with missing values, variables which contained a lot of missing values were removed, along with 32 observations that were missing across multiple columns. 
 ```{r}
 # remove columns in which stored value is only NA
@@ -142,7 +142,7 @@ lending_loans <- lending_loans %>%
   drop_na(open_acc) # remove 32 rows as this rows are missing across multiple columns
 ```
 
-##### Feature engineering
+### 2.3 Feature engineering
 
 The target variable in our model is loan_status. The feature has 9 different values. Here they are explained:
 
@@ -158,7 +158,7 @@ For this analysis, we are going to keep only observations where loan status cont
 
 Further, our data-set has categorical variables containing many multiple labels. Then by using one-hot encoding, we will expand the feature space dramatically. For this reason, the cardinality of some variables was reduced. Closer analysis on these variables was performed initially.
 
-The features related to the past incidences of delinquency, number of inquiries in the past 6 months, number of derogatory public records, late fees received to date, and post charge off gross recovery were converted to the logical variable. As the common value representing the number of incidences was one or two. These values were assigned TRUE and where there were no records FALSE was assigned.
+The features related to the past incidences of delinquency, number of inquiries in the past 6 months, number of derogatory public records, late fees received to date, and post charge off gross recovery were converted to the logical variable. As the common value representing the number of incidences was one or two. These values were assigned TRUE and where there wasn't record FALSE was assigned.
 
 The missing values in the Revolving line utilization rate were replaced with median imputation. 
 Next, a feature was created that represents the monthly employment expense of the user's repayment expense as a percentage of the monthly salary. 
@@ -167,7 +167,7 @@ Variable 'out_prncp' was removed as it doesn't store any values for Fully Paid o
 
 Lastly, after closer analysis, I identified that we can't draw any strong conclusions of whether the 'Charge Off' is affected by the state variable, so we won't be adding 'addr_state' to our model, and the same applies to the issue date.
 
-We concentrate our attention at the variables that LendingClub and it's investors are having during the initial stage.
+I concentrated attention at the variables that LendingClub and its investors have about borrower during the initial stage.
 
 ```{r}
 lending_loans <- lending_loans %>% 
@@ -192,7 +192,7 @@ lending_loans <- lending_loans %>%
                                 emp_length %in% c("9 years", "8 years", "7 years", "6 years") ~ "above 5 years",
                                 emp_length %in% c("5 years", "4 years", "3 years", "2 years") ~ "2 - 5 years",
                                 emp_length %in% c("1 year", "< 1 year") ~ "1 and under",
-                                emp_length == "n/a" ~ "unknows"),
+                                emp_length == "n/a" ~ "unknown"),
          addr_state = coalesce(addr_state, "unknown"),
          revol_util_pct = str_remove_all(revol_util, "[%]"), # the amount of credit the borrower is using relative to all available revolving credit
          revol_util_pct = as.numeric(revol_util_pct), # convert to numeric
@@ -208,45 +208,38 @@ lending_loans <- lending_loans %>%
          earliest_cr_line = case_when(earliest_cr_line >= 2000 ~ "00s",
                                       earliest_cr_line >= 1940 ~ "40s-90s",
                                       T ~ "unknown"),
-         term_36 = ifelse(term == "36 months", T, F)
+         term_36 = ifelse(term == "36 months", T, F),
+         purpose = case_when(purpose %in% c("home_improvement", "house") ~ "house related",
+                             purpose %in% c("vacation", "wedding", "car", "major_purchase") ~ "personal",
+                             T ~ as.character(purpose)), #  where relevant reduce the amount of variable labels
+         purpose = as.factor(purpose)
          ) %>% # if it is not 36, we know it will be 60 months
   mutate_if(is_character, as_factor) %>% 
-  select(-c(collection_recovery_fee, int_rate, revol_util, fico_range_low, fico_range_high, addr_state, issue_d, out_prncp, last_fico_range_high, term))
+  select(-c(collection_recovery_fee, int_rate, revol_util, fico_range_low, fico_range_high, addr_state, issue_d, out_prncp, last_fico_range_high, term, recoveries, total_rec_late_fee))
 ```
 
-```{r}
-# where relevant reduce the amount of variable labels
-lending_loans <- lending_loans %>% 
-  mutate(purpose = case_when(purpose %in% c("home_improvement", "house") ~ "house related",
-                             purpose %in% c("vacation", "wedding", "car", "major_purchase") ~ "personal",
-                             T ~ as.character(purpose)),
-         purpose = as.factor(purpose))
-lending_loans <- lending_loans %>% 
-  select(-c(recoveries, total_rec_late_fee))
-```
-
-Check for aliases in the independent variables:
-```{r}
+#### 2.3.1 Check for aliases in the independent variables
+```{r, results = FALSE}
 alias(loan_status ~ ., data = lending_loans)
 ```
-All good, now let's check correlation between the features to decide which variables to include in the model. As we can see there is a strong positive correlation between loan amount and three other variables (installment (0.93), total_pymnt (0.88), and total_rec_int (0.73)), therefore, they can be excluded from our model. 
+All the variables are independent.
 
-```{r}
+#### 2.3.2 Correlation between the features
+Now let's check correlation between the features to decide which variables to include in the model. As we can see there is a strong positive correlation between loan amount and three other variables (installment (0.93), total_pymnt (0.88), and total_rec_int (0.73)), therefore, we can exclude them.
+
+```{r, results = FALSE}
 # check correlation between numeric features
 cor(lending_loans[, sapply(lending_loans, class) == "numeric"])
 
 # remove variables
 lending_loans <- lending_loans %>% 
   select(-c(installment, total_pymnt, total_rec_int))
-
-#write_csv(lending_loans, "../clean_data/lending_loans.csv")
 ```
 
 ## 3. EXPLORARORY ANALYSIS
 
 A principal source of biases the ML models is from the data used to train it. In order to understand our data we will perform Exploratory Data Analysis. The main purpose of exploratory analysis is to help look at data before making any assumptions. It is one of the most important steps before building a model in order to identify obvious errors, as well as better understand patterns within the data, detect outliers or find interesting relations among the variables.
 
-##### Distribution of Loans by Purpose of Loan
 
 ```{r}
 lending_loans %>% 
@@ -259,18 +252,18 @@ lending_loans %>%
 ```
 
 
-
+### 3.1 Loan amount
 
 ```{r}
-# distribution of loan amount
 lending_loans %>% 
   ggplot(aes(x = loan_amnt))+
-  geom_histogram(fill = "#377eb8")+
+  geom_histogram(fill = "#377eb8", bins = 30)+
   labs(title = "Distribution of Loan Amount",
        x = "Loan Amount",
        y = "Count")+
   theme_bw()
 ```
+
 ```{r}
 lending_loans %>% 
   ggplot(aes(x = loan_status, y = loan_amnt))+
@@ -282,13 +275,16 @@ lending_loans %>%
   theme_bw()
   
 ```
+
 Charged-off loans tend to have higher loan amounts. 
 
+
+### 3.2 Interest Rate
+
 ```{r}
-# distribution of interest
 lending_loans %>% 
   ggplot(aes(x = int_rate_pct))+
-  geom_histogram(fill = "#377eb8")+
+  geom_histogram(fill = "#377eb8", bins = 30)+
   labs(title = "Distribution of Interest Rate %",
        x = "Interest Rate %",
        y = "Count")+
@@ -305,9 +301,11 @@ lending_loans %>%
        y = "Interest Rate %")+
   theme_bw()
 ```
+
 Charged-off loans tend to have much higher interest rates.
 
 
+### 3.3 Home Ownership
 
 ```{r}
 lending_loans %>% 
@@ -321,6 +319,10 @@ lending_loans %>%
   theme_bw()
 ```
 
+Most of the borrowers are renting or have mortgage. Highest amount of charged-off loans is in the 'rent' category.
+
+
+### 3.4 Verification Status
 
 ```{r}
 lending_loans %>% 
@@ -334,12 +336,15 @@ lending_loans %>%
   theme_bw()
 ```
 
+Large portion of the borrowers is not verified.
 
+
+### 3.5 Fico Range
 
 ```{r}
 lending_loans %>% 
   ggplot(aes(x = fico_range_avg))+
-  geom_histogram(fill = "#377eb8")+
+  geom_histogram(fill = "#377eb8", bins = 30)+
   labs(title = "Distribution of Average Fico Range",
        x = "Mean Fico Range",
        y = "Count")+
@@ -358,7 +363,12 @@ lending_loans %>%
   theme_bw()
 ```
 
-First we can look at the distribution of loans by the purpose. There is 14 different factors for this variable. For example, 46% of the loans were taken for debt_consolidation and 16% of them were not fully paid. In comparison to loans for 'small businesses', these loans make not even 5% but 28% of them were not fully paid. Therefore, can can assume that there may be some relationship between our target variable and the purpose. 
+Charged-off loans tend to have much smaller Fico Range. (*US Fico Range is similar UK's Credit Score)
+
+
+### 3.6 Purpose
+
+Next we can look at the distribution of loans by the purpose. There is 14 different factors for this variable. For example, 46% of the loans were taken for debt_consolidation and 16% of them were not fully paid. In comparison to loans for 'small businesses', these loans make not even 5% but 28% of them were not fully paid. Therefore, can can assume that there may be some relationship between our target variable and the purpose. 
 
 ```{r}
 # investigate the amount of charged off loans by purpose category
@@ -374,7 +384,6 @@ lending_loans %>%
        x = "Purpose")+
   theme_bw()
 ```
-
 
 ```{r}
 # percentage loans by purpose category and Loan status
@@ -393,25 +402,33 @@ lending_loans %>%
   theme_bw()
 ```
 
-##### Annual Income
 
-Summary statistics of annual income. We can see that there are few outliers. However, we won't be dealing with them. After closer inspection we could we that our two borrowers with highest annual income took loan for home improvements and it was fully paid so we can well assume that this was the case.
+### 3.7 Annual Income
+
+Summary statistics of annual income. We can see that there are few outliers. However, we won't be dealing with them. After closer inspection we could see that our two borrowers with highest annual income took loan for home improvements and it was fully paid so we can well assume that this was the case.
+
 ```{r}
 lending_loans %>% 
   mutate(annual_inc = annual_inc / 1000) %>% 
   group_by(annual_inc) %>% 
   summarise(frequency = n()) %>% 
   ggplot(aes(x = annual_inc, y = frequency))+
-  geom_point()+
+  geom_point(color = "#377eb8")+
   labs(title = "Annual income",
        y = "Frequency",
-       x = "Annual income (unit 1000)")
+       x = "Annual income (unit 1000)")+
+  theme_bw()
+```
 
+
+```{r, results = FALSE}
 lending_loans %>% 
   select(annual_inc, purpose, loan_status) %>% 
-  filter(annual_inc > 3000000) 
+  filter(annual_inc > 3000000)
 ```
-##### Distribution of Loans by Grading Score
+
+
+### 3.8 Grade
 
 Distribution of loans by grading system is another information that can be beneficial for LendingClub. Loan grading is a classification system that involves assigning a quality score to a loan based on a borrower's credit history, quality of the collateral, and the likelihood of repayment of the principal and interest. I have calculated the percentage of each grading for two loan statuses. We can see that the proportion of loans that are not fully paid increases for poorer risk grades.
 
@@ -446,15 +463,15 @@ lending_loans %>%
 
 ## 4. MODEL BUILDING
 
-##### Feature selection
+### 4.1 Feature selection
 
 After we have cleaned and analysed data, we can conclude which features we be included in the model. The model will include following 21 independent variables: loan_amnt, emp_length, home_ownership, annual_inc, verification_status, loan_status, purpose, dti, delinq_2yrs, inq_last_6mths, open_acc, pub_rec, revol_bal, total_acc, pub_rec_bankruptcies, grade, int_rate_pct, revol_util_pct, install_mth_pct, fico_range_avg, term_36.    
 
-##### Data Spliting
+### 4.2 Data Spliting
 
 Before building the model we need to split our data into training and test set. We are going to train the classifier on the training data and then we are going to test how good our classifier is on the test data. I have decided to use single test set method where I split data-set into training set (70%) and test set (30%).
 
-```{r}
+```{r, results = FALSE}
 # Splitting data set into training and test set
 set.seed(42) # making results reproducible
 
@@ -470,7 +487,9 @@ test <- lending_loans %>%
 nrow(train) + nrow(test) == nrow(lending_loans)
 ```
 
-Check the distribution of outcome in the training and testing sets to see that they are roughly comparable
+#### 4.2.1  Distribution of training and testing sets
+
+Check the distribution of outcome in the training and testing sets to see that they are roughly comparable.
 
 ```{r}
 # check the distribution of outcome in the training and testing
@@ -480,23 +499,25 @@ train %>%
 test %>%
   tabyl(loan_status)
 ```
-Very good results, our data are evenly spread between the T and F in both test and train.
 
-##### Logistic regression
+### 4.3 Logistic regression - First Model
+
+#### 4.3.1 Fit First Model
 
 After we have carried out data cleaning and data analysis we insert our predictors into the model.
 
-```{r}
+```{r, results = FALSE}
 # logistic regression with all predictors
 log_reg_model <- glm(loan_status ~ ., data = train, family = binomial(link = "logit"))
 summary(log_reg_model)
 ```
 
-##### Plotting ROC curve
+
+#### 4.3.2 Plotting ROC curve
 
 The receiving operating characteristic (ROC) is a visual measure of classifier performance. Using the proportion of positive data points that are correctly considered as positive and the proportion of negative data points that are mistakenly considered as positive, we generate a graphic that shows the trade off between the rate at which you can correctly predict something with the rate of incorrectly predicting something. Ultimately, we’re concerned about the area under the ROC curve, or AUC. That metric ranges from 0.50 to 1.00, and values above 0.80 indicate that the model does a good job in discriminating between the two categories which comprise our target variable. 
 
-```{r}
+```{r, message=FALSE}
 loans_pred <- test %>%
   add_predictions(log_reg_model, type = "response")
 
@@ -509,10 +530,11 @@ roc_curve <- ggroc(data = roc_pred, legacy.axes = TRUE) +
 roc_curve
 ```
 
-##### Area under the ROC Curve
+
+#### 4.3.3 Area under the ROC Curve
 
 If we calculate the area under the curve (AUC), we can use this as a measure of performance. Better classifiers have curves closer to the top left point, and so have larger AUC values. AUC will range from 0.50 - 1.00. 
-```{r}
+```{r, message=FALSE, results=FALSE}
 roc_train <- train %>%
   add_predictions(log_reg_model, type = "response") %>%
   roc(response = loan_status, predictor = pred)
@@ -528,7 +550,10 @@ auc(roc_test)
 
 The classification accuracy is relatively low 0.7079 for training set and 0.698 for test set.
 
-```{r}
+
+#### 4.3.4 Confusion Matrix
+
+```{r, results = FALSE}
 # confusion matrix
 
 list(
@@ -547,8 +572,14 @@ The results show that 67% of the predicted observations are true positive and on
 
 Our model is fairly poor in predicting who won't pay off the loan.
 
-##### Second model
 
+
+### 4.4 Logistic regression - Second Model
+
+
+#### 4.4.1 Automated Model Selection
+
+Using automated model selection with glmulti package to find the best model.
 ```{r eval=FALSE}
 glmulti_search_all_loans <- glmulti(
   loan_status ~ ., 
@@ -566,15 +597,19 @@ summary(glmulti_search_all_loans)
 ```
 
 
-```{r}
+#### 4.4.2 Fit Best Model
+
+Creating a second model with the best model features.
+```{r, results = FALSE}
 # second logistic regression model from glmulti
 log_reg_model_2 <- glm(loan_status ~ emp_length + purpose + pub_rec_bankruptcies +  annual_inc + inq_last_6mths + revol_bal + int_rate_pct + revol_util_pct + install_mth_pct + fico_range_avg + term_36, data = train, family = binomial(link = "logit"))
 summary(log_reg_model_2)
 ```
 
-##### Plotting ROC curve
 
-```{r}
+#### 4.4.3 Plotting ROC curve
+
+```{r, message=FALSE}
 loans_pred_2 <- test %>%
   add_predictions(log_reg_model_2, type = "response")
 
@@ -588,9 +623,10 @@ roc_curve_2 <- ggroc(data = roc_pred_2, legacy.axes = TRUE) +
 roc_curve_2
 ```
 
-##### Area under the ROC Curve
 
-```{r}
+#### 4.4.4 Area under the ROC Curve
+
+```{r, message=FALSE, results=FALSE}
 roc_train_2 <- train %>%
   add_predictions(log_reg_model_2, type = "response") %>%
   roc(response = loan_status, predictor = pred)
@@ -604,15 +640,17 @@ roc_test_2 <- test %>%
 auc(roc_test_2)
 ```
 
-##### Confusion Matrix
+The classification accuracy is relatively low 0.7067 for training set and 0.6975 for test set.
 
-```{r}
+
+#### 4.4.5 Confusion Matrix
+
+```{r, results = FALSE}
 list(
   log_reg_model= table(test$loan_status,  loans_pred$pred > 0.8) %>% prop.table() %>% round(3),
   log_reg_model_2= table(test$loan_status,  loans_pred_2$pred > 0.8) %>% prop.table() %>% round(3)
 )
 ```
-###### Model 2
 
 true positives (Bottom-right quadrant): these are cases in which we predicted the customer would Fully pay and they did. - 67% accuracy.
 
@@ -622,9 +660,12 @@ false positives (Top-right quadrant): We predicted Charged Off, but they actuall
 
 false negatives (Bottom-left): We predicted loan Fully paid, but it was actually Charged off. (Also known as a “Type II error.”) - 17%
 
-The results show that 67% of the predicted observations are true positive and only 7% are true negative. The model has larger type two error, 17% of predicted observations are false positive in which the model predicts borrower not to fully pay the loan but they actually paid off. And the model has type I error - false negative - 0.8% in which it predicts borrower to fully pay the loan but they didn't.
+The results show that 67% of the predicted observations are true positive and only 7% are true negative. The model has larger type two error, 17% of predicted observations are false positive in which the model predicts borrower not to fully pay the loan but they actually paid off. And the model has type I error - false negative 8% - in which it predicts borrower to fully pay the loan but they didn't.
 
 Our model is fairly poor in predicting who won't pay off the loan.
+
+
+#### 4.4.6 p-values
 
 ```{r}
 p_value <- tidy(log_reg_model_2)
@@ -633,11 +674,12 @@ p_value %>%
   arrange(p.value)
 ```
 
-##### Sensitivity and Specificity
+
+#### 4.4.7 Sensitivity and Specificity
 
 Sensitivity is synonymous to precision. However, the specificity is the percentage of defaulters that are correctly identified. In our case, a card company is likely to be more concerned with sensititivy since they want to reduce their risk. 
 
-```{r}
+```{r, results = FALSE}
 classifier_data <- tibble(
   threshold = roc_pred_2$thresholds,
   sensitivity = roc_pred_2$sensitivities,
@@ -691,6 +733,7 @@ classifier_data %>%
   filter(exp_profit_per_pot_applicant == max(exp_profit_per_pot_applicant))
 ```
 
+## 5. CONCLUSION
 The two most important measures to evaluate models are the accuracy and error. 
 The ROC curve will give the real picture about the quality of our mode.
 The area under the curve is equal to 0.70. Therefore, it is clear from this picture that this model is fairly poor as it is not able to classified correctly loans that are charged off. The main reason for this poor model performance is because the dataset is imbalanced. The model learned from the training set with significantly higher proportion of fully paid compare to charged off loans. Therefore, charged off loan is very rare event in our training data set.
