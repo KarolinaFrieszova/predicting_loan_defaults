@@ -156,8 +156,8 @@ server <- function(input, output) {
     )
     
     output$myList_4 <- renderUI(HTML("<font size = 4><ul>
-    <li>Applying additional methods such as strategy curve, cost-sensitive learning, under sampling, or over sampling</li>
-    <li>Also other methods can be used for classification, for instance random forest, neural networks, or naive bayes</li>
+    <li>Applying additional methods such as strategy curve, cost-sensitive learning, under-sampling, or over-sampling</li>
+    <li>Also, other methods can be used for classification, for instance Random forest, Neural networks, or Naive Bayes</li>
     </ul></font>")
     )
     
