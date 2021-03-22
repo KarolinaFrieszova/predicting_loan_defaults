@@ -3,6 +3,8 @@
 .RData
 .DStore
 
+**/.nb.html
+
 ### Data files ###
 
 *.csv
@@ -14,3 +16,4 @@
 ### Python ###
 
 **/.ipynb_checkpoints
+

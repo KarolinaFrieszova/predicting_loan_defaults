@@ -29,11 +29,13 @@ LendingClub is a US peer-to-peer lending company and the world's largest peer-to
 
 ### 1.2 Business Problem
 
-Peer_to_peer online lending platform has brought opportunities to investors, but at the same time, investors are also faced with the risk of user loan default, which is related to the sustainable and healthy development of the LendingClub platform.
+Peer_to_peer online lending platform has brought opportunities to investors, but at the same time, investors are also faced with the risk of user loan default, which is related to the sustainable and healthy development of the LendingClub's platform. Investors want to maximise their profit and minimase their risk, in other words investors want to avoid funding loans that won't be fully paid off but equally, they do not want to miss on the opportunity to lend to someone who would pay back.
 
 ### 1.3 Project Goal
 
-The goal of this project is to help LendingClub to understand which borrowers are likely not to pay off their loan, and predict who is likely to pay off their loan in the future.
+The aim of this project is to develop a machine learning model on a data provided by an online loan provider called LendingClub to improve their risk assessment and understanding of who is likely to default and who they should lend to in the future.
+
+My purpose of the project was to build a model that identifies right characteristics of the two types of borrowers and establish most favourable cut off point of accepted loan applications to maximise the business profit.
 
 ### 1.4 Data Source
 
@@ -59,7 +61,8 @@ Logistic regression is a statistical model that in its basic form uses a logisti
 
 The raw data from the LendingClub contains 42538 rows and 114 columns. Each observation represents one borrower and her/his information. The personal loans are between $500 to \$35000. The standard loan duration is 3 or 5 years. The period in which loans were funded is Jun 2007 to Dec 2011. 
 
-The original data-set contains many different variables that LendingClub collects during different stages of the loan process. Many of these variables have large amounts of missing values or are arbitrary to building predictive loan risk model. In this original data-set, there was one duplicate row that is no present after the data cleaning process. 
+The original data-set contains many different variables that LendingClub collects during different stages of the loan process. Many of these variables have large amounts of missing values, only a single constant value or were arbitrary to building predictive loan risk model. 
+In this original data-set, there was one duplicate row that is no present after the data cleaning process. 
  
 Our data-set is joined with two data-sets that added a state name to the zip code and reduced the risk grading system from 35 grades to 7.
 
@@ -94,7 +97,8 @@ lending_club_loans <- left_join(lending_club_loans, state_names,
 ```
 
 #### 2.2.3 Initial variable reduction
-In dealing with missing values, variables which contained a lot of missing values were removed, along with 32 observations that were missing across multiple columns. 
+In dealing with missing values, I have removed the variables with large amounts of missing values or with a constant single value throughout the column. The original data-set contains many different variables that LendingClub collects during different stages of the loan process. I have concentrated my attention at the information that the LendingClub and its investors have about an applicant during the application stage.
+
 ```{r}
 # remove columns in which stored value is only NA
 lending_loans <- lending_club_loans %>% 
@@ -144,7 +148,7 @@ lending_loans <- lending_loans %>%
 
 ### 2.3 Feature engineering
 
-The target variable in our model is loan_status. The feature has 9 different values. Here they are explained:
+The target variable in my model is loan_status. The feature has 9 different values. Here they are explained:
 
 - *Current:* Loan is up to date on all outstanding payments. 
 - *In Grace Period:* Loan is past due but within the 15-day grace period. 
@@ -176,7 +180,7 @@ lending_loans <- lending_loans %>%
                                  loan_status == "Does not meet the credit policy. Status:Fully Paid" ~ T,
                                  loan_status == "Charged Off" ~ F,
                                  loan_status == "Does not meet the credit policy. Status:Charged Off" ~ F
-  )) %>% # abstraction: loan status paid = 1, charged off = 0
+  )) %>% # abstraction: loan status paid = T, charged off = F
   rename("addr_state" = "state_name") %>% 
   mutate(delinq_2yrs = ifelse(delinq_2yrs == 0, F, T), # past-due incidences of delinquency in the borrower's credit file for the past two years
          inq_last_6mths  = ifelse(inq_last_6mths == 0, F, T),
@@ -236,13 +240,13 @@ lending_loans <- lending_loans %>%
   select(-c(installment, total_pymnt, total_rec_int))
 ```
 
-## 3. EXPLORARORY ANALYSIS
+## 3. EXPLORATORY ANALYSIS
 
 A principal source of biases the ML models is from the data used to train it. In order to understand our data we will perform Exploratory Data Analysis. The main purpose of exploratory analysis is to help look at data before making any assumptions. It is one of the most important steps before building a model in order to identify obvious errors, as well as better understand patterns within the data, detect outliers or find interesting relations among the variables.
 
 
 ```{r}
-lending_loans %>% 
+loan_status_graph <- lending_loans %>% 
   ggplot(aes (x = loan_status))+
   geom_bar(fill = c("#e41a1c", "#4daf4a"))+
   labs(title = "Distribution of loans by repayment status",
@@ -618,7 +622,10 @@ roc_pred_2 <- loans_pred_2 %>%
 
 roc_curve_2 <- ggroc(data = roc_pred_2, legacy.axes = TRUE) +
   coord_fixed()+
-  theme_bw()
+  theme_economist()+
+  labs(title = "ROC curve\n",
+       y = "true positive (sensitivity)\n",
+       x = "\nfalse positive (1 - specificity/true negative)")
 
 roc_curve_2
 ```

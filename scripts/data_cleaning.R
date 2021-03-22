@@ -16,7 +16,7 @@ lending_club_loans <- left_join(lending_club_loans, grade_info, by = "sub_grade"
 lending_club_loans <- left_join(lending_club_loans, state_names, 
                                 by = c("addr_state" = "state_abb"))
 
-# remove columns in which stored value is only NA
+# remove columns with 50% plus missing values
 lending_loans <- lending_club_loans %>% 
   select(-c(total_il_high_credit_limit, mths_since_last_major_derog, num_bc_tl,
             mths_since_rcnt_il, mths_since_recent_bc, mths_since_recent_bc_dlq, 
@@ -46,7 +46,7 @@ lending_loans <- lending_loans %>%
             collections_12_mths_ex_med, chargeoff_within_12_mths, # 0, NA 
             title, # high correlation with purpose
             emp_title, next_pymnt_d, # high cardinalty and a lot missing 
-            zip_code, earliest_cr_line, # high cardinalty, not required
+            zip_code, # earliest_cr_line, # high cardinalty, not required
             funded_amnt, funded_amnt_inv, # highly correlated with loan_amount
             pymnt_plan, # only one True value - rest False
             total_pymnt_inv, # highly correlated with total_pymnt
@@ -58,51 +58,58 @@ lending_loans <- lending_loans %>%
             out_prncp_inv, # highly correlated with out_prncp
             last_fico_range_low, # highly correlated with last_fico_range_high
             total_rec_prncp # highly correlated with total_pymnt (principal is the amount you borrowed without interest)
-            )) %>% 
+  )) %>% 
   drop_na(open_acc) # remove 32 rows as this rows are missing across multiple columns
 
-# feature engineering
 lending_loans <- lending_loans %>% 
-  mutate(default_loan = case_when(loan_status == "Fully Paid" ~ F,
-                                  loan_status == "Current" ~ F,
-                                  loan_status == "Does not meet the credit policy. Status:Fully Paid" ~ F,
-                                  loan_status == "Charged Off" ~ T,
-                                  loan_status == "In Grace Period" ~ T,
-                                  loan_status == "Late (31-120 days)" ~ T,
-                                  loan_status == "Late (16-30 days)" ~ T,
-                                  loan_status == "Default" ~ T,
-                                  loan_status == "Does not meet the credit policy. Status:Charged Off" ~ T
-                                  )) %>% # abstraction: loan status normal = 0, default = 1
-  select(-loan_status) %>% 
+  filter(!loan_status %in% c("Current", "In Grace Period", "Late (31-120 days)", "Late (16-30 days)", "Default")) %>%
+  mutate(loan_status = case_when(loan_status == "Fully Paid" ~ T,
+                                 loan_status == "Does not meet the credit policy. Status:Fully Paid" ~ T,
+                                 loan_status == "Charged Off" ~ F,
+                                 loan_status == "Does not meet the credit policy. Status:Charged Off" ~ F
+  )) %>% # abstraction: loan status paid = T, charged off = F
   rename("addr_state" = "state_name") %>% 
   mutate(delinq_2yrs = ifelse(delinq_2yrs == 0, F, T), # past-due incidences of delinquency in the borrower's credit file for the past two years
          inq_last_6mths  = ifelse(inq_last_6mths == 0, F, T),
          pub_rec = ifelse(pub_rec == 0, F, T), # derogatory public records
-         out_prncp = ifelse(out_prncp == 0, F, T), # Remaining outstanding principal for total amount funded
          total_rec_late_fee = ifelse(total_rec_late_fee == 0, F, T), # Late fees received to date
          recoveries = ifelse(recoveries == 0, F, T), # post charge off gross recovery
          collection_recovery_fee = ifelse(collection_recovery_fee == 0, F, T), # post charge off collection fee
          int_rate_pct = str_remove_all(int_rate, "[%]"),
+         home_ownership = recode(home_ownership, "NONE" = "OTHER"),
          int_rate_pct = as.numeric(int_rate_pct), # convert interest rate to numeric
          issue_d = str_remove_all(issue_d, "[0-9-]"), # remove year, leave month
-         issue_d = case_when(issue_d %in% c("Jan", "Feb", "Mar") ~ "Q1",
-                             issue_d %in% c("Apr", "May", "Jun") ~ "Q2",
-                             issue_d %in% c("Jul", "Aug", "Sep") ~ "Q3",
-                             issue_d %in% c("Oct", "Nov", "Dec") ~ "Q4"),
-         emp_length = recode(emp_length, "n/a" = "unknown"),
+         emp_length = case_when(emp_length == "10+ years" ~ "10+ years",
+                                emp_length %in% c("9 years", "8 years", "7 years", "6 years") ~ "above 5 years",
+                                emp_length %in% c("5 years", "4 years", "3 years", "2 years") ~ "2 - 5 years",
+                                emp_length %in% c("1 year", "< 1 year") ~ "1 and under",
+                                emp_length == "n/a" ~ "unknown"),
          addr_state = coalesce(addr_state, "unknown"),
          revol_util_pct = str_remove_all(revol_util, "[%]"), # the amount of credit the borrower is using relative to all available revolving credit
          revol_util_pct = as.numeric(revol_util_pct), # convert to numeric
-         revol_util = coalesce(revol_util, median(revol_util, na.rm = TRUE)), # replace missing values with median
+         revol_util_pct = coalesce(revol_util_pct, median(revol_util_pct, na.rm = TRUE)), # replace missing values with median
          pub_rec_bankruptcies = as.character(pub_rec_bankruptcies),
          pub_rec_bankruptcies = case_when(pub_rec_bankruptcies == "0" ~ "no", 
                                           pub_rec_bankruptcies == "1" ~ "yes",
                                           pub_rec_bankruptcies == "2" ~ "yes", 
                                           TRUE ~ "unknown"), # public record bankruptcies
          install_mth_pct = round((installment * 100) / (annual_inc/12), 2), # monthly installment expense %
-         fico_range_avg = (fico_range_low + fico_range_high) / 2
-         ) %>% 
+         fico_range_avg = (fico_range_low + fico_range_high) / 2,
+         earliest_cr_line = str_remove_all(earliest_cr_line, "[A-Za-z-]"),
+         earliest_cr_line = case_when(earliest_cr_line >= 2000 ~ "00s",
+                                      earliest_cr_line >= 1940 ~ "40s-90s",
+                                      T ~ "unknown"),
+         term_36 = ifelse(term == "36 months", T, F),
+         purpose = case_when(purpose %in% c("home_improvement", "house") ~ "house related",
+                             purpose %in% c("vacation", "wedding", "car", "major_purchase") ~ "personal",
+                             T ~ as.character(purpose)), #  where relevant reduce the amount of variable labels
+         purpose = as.factor(purpose)
+  ) %>% # if it is not 36, we know it will be 60 months
   mutate_if(is_character, as_factor) %>% 
-  select(-c(collection_recovery_fee, int_rate, revol_util, fico_range_low, fico_range_high))
-  
+  select(-c(collection_recovery_fee, int_rate, revol_util, fico_range_low, 
+            fico_range_high, addr_state, issue_d, out_prncp, last_fico_range_high, 
+            term, recoveries, total_rec_late_fee, installment, total_pymnt, total_rec_int))
+
+rm(lcd_dictionary)
+
 write_csv(lending_loans, "clean_data/lending_loans.csv")
