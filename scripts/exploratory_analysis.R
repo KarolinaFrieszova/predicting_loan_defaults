@@ -141,7 +141,7 @@ grade_graph_2 <- lending_loans %>%
   mutate(pct = round(grade_count * 100 / sum(grade_count))) %>% 
   ggplot(aes(x = grade, y = pct, fill = loan_status))+
   geom_col()+
-  labs(title = "Distribution of Loans by Grading System and Loan Status",
+  labs(title = "% of Loans by Grading System and Loan Status",
        fill = "Fully Paid",
        y = "Percentage",
        x = "Grade")+

@@ -96,6 +96,8 @@ server <- function(input, output) {
     )
     
     output$myList_2 <- renderUI(HTML("<font size = 4><ul>
+    <li>Model assumptions: binary dependent variable, no multicollinearity among
+    independent variables, observations to be independent from each other</li>
     <li>Conventional 80 to 20 random Train/Test Split</li>
     <li>Automated model selection using glmulti package</li>
     <li>Fit logistic regression model using generalised linear model function</li>
@@ -139,6 +141,24 @@ server <- function(input, output) {
                  x = "")+
             theme_economist()+
             theme(axis.text.x=element_text(angle=90, hjust=1))
+    )
+    
+    output$myList_3 <- renderUI(HTML("<font size = 4><ul>
+    <li>Important performance measures are accuracy and error values</li>
+    <li>Accuracy 70%</li>
+    <li>Large type II error (30.5%)</li>
+    <li>The ROC curve gives a real picture of the quality of our mode</li>
+    <li>Setback: unbalanced dataset</li>
+    <li>Classification Accuracy could be problematic measure for disproportionate 
+    classification (common scenario in the investment and banking sector) can lead to making wrong decisions</li>
+    <li>Better measure is the ROC-curve which shows true positive rates against false-positive rates</li>
+    </ul></font>")
+    )
+    
+    output$myList_4 <- renderUI(HTML("<font size = 4><ul>
+    <li>Applying additional methods such as strategy curve, cost-sensitive learning, under sampling, or over sampling</li>
+    <li>Also other methods can be used for classification, for instance random forest, neural networks, or naive bayes</li>
+    </ul></font>")
     )
     
     

@@ -743,7 +743,7 @@ classifier_data %>%
 ## 5. CONCLUSION
 The two most important measures to evaluate models are the accuracy and error. 
 The ROC curve will give the real picture about the quality of our mode.
-The area under the curve is equal to 0.70. Therefore, it is clear from this picture that this model is fairly poor as it is not able to classified correctly loans that are charged off. The main reason for this poor model performance is because the dataset is imbalanced. The model learned from the training set with significantly higher proportion of fully paid compare to charged off loans. Therefore, charged off loan is very rare event in our training data set.
+The area under the curve is equal to 0.70. Therefore, it is clear that this model is fairly poor as it is not able to classify correctly loans that are charged off. The main reason for this poor model performance is because the dataset is unbalanced. The model learned from the training set with significantly higher proportion of fully paid compare to charged off loans. Therefore, charged off loan is very rare event in our training data set.
 
 The results show that 67% of the predicted observations are true positive and only 7% are true negative. The model has larger type two error, 17% of predicted observations are false positive in which the model predicts borrower not to fully pay the loan but they actually paid off. And the model has type I error - false negative - 0.8% in which it predicts borrower to fully pay the loan but they didn't.
 

@@ -8,6 +8,7 @@ ui <- dashboardPage(
     dashboardSidebar(
         sidebarMenu(
             tags$style(HTML(".sidebar-menu li a { font-size: 18px; }")),
+            menuItem("About", tabName = "about"),
             menuItem("Introduction", tabName = "introduction"),
             menuItem("Data Preparation", tabName = "preparation"),
             menuItem("Exploratory Analysis", tabName = "analysis"),
@@ -18,6 +19,23 @@ ui <- dashboardPage(
     ),
     dashboardBody(
         tabItems(
+            tabItem(tabName = "about",
+                    h2(tags$b("Welcome!"), align = "center", style = "color:#484848"),
+                    br(),
+                    br(),
+                    p("Name: Karolina Frieszova", 
+                      style = "font-size:20px"),
+                    br(),
+                    p("Position: Data Analyst, CodeClan graduate", 
+                      style = "font-size:20px"),
+                    br(),
+                    p("Project involves: data cleaning, data visualisation, dashboard building, machine learning",
+                      style = "font-size:20px"),
+                    br(),
+                    p("Language: R",
+                      style = "font-size:20px")
+                    
+            ),
             tabItem(tabName = "introduction",
                     h2(tags$b("Introduction"), align = "center", style = "color:#484848"),
                     h3(tags$b("Aim of the project"), style = "color:#377eb8"),
@@ -132,6 +150,15 @@ ui <- dashboardPage(
                         plotOutput("feature_importance"), width = 8
                     )
                 )
+            ),
+            tabItem(
+                tabName = "conclusion",
+                h2(tags$b("Conclusion"), align = "center", style = "color:#484848"),
+                h3(tags$b("Findings"), style = "color:#377eb8"),
+                uiOutput("myList_3"),
+                br(),
+                h3(tags$b("Enhancements"), style = "color:#377eb8"),
+                uiOutput("myList_4")
             )
         )
     )
