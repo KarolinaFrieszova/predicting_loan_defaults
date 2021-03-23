@@ -38,6 +38,7 @@ server <- function(input, output) {
     
     output$myList <- renderUI(HTML("<font size = 4><ul>
     <li>Supervised machine learning method (logistic regression algorithm)</li>
+    <li>Vast data cleaning</li>
     <li>Set and encode lean status as target variable to represent only two possibilities: paid and default loans</li>
     <li>Feature reduction</li>
     <li>Data engineering</li>
@@ -145,7 +146,7 @@ server <- function(input, output) {
     <li>Area under the curve 0.70 (generally aiming for 0.80)</li>
     <li>Setback: unbalanced dataset</li>
     <li>Common scenario in the investment and banking sector</li>
-    <li>Better performance measure: the ROC curve (true positive rates against false-positive rates)</li>
+    <li>Better performance measure: the ROC curve (true-positive rates against false-positive rates)</li>
     </ul></font>")
     )
     

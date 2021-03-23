@@ -3,8 +3,7 @@ title: "Predicting Loan Defaults"
 author: "Karolina Frieszova"
 date: "03/03/2021"
 output:
-  html_document:
-    code_folding: hide
+  html_document
 ---
 
 ```{r setup, include=FALSE}
@@ -68,7 +67,7 @@ About the dataset, I was working with. It contains information about all loans, 
 ### Data Cleaning
 
 #### Packages used
-```{r message=FALSE, echo=TRUE,cache=FALSE, results=TRUE, warning=FALSE, comment=FALSE, warning=FALSE}
+```{r message=FALSE, echo=TRUE,cache=FALSE, results=TRUE, comment=FALSE, warning=FALSE}
 library(tidyverse)
 library(here)
 library(janitor)
@@ -78,8 +77,6 @@ library(modelr)
 library(glmulti)
 library(caTools)
 library(ROCR)
-library(ggplot2)
-library(ggthemes)
 library(cvms)
 library(ROCit)
 library(caret)
@@ -268,7 +265,7 @@ loan_status_graph <- lending_loans %>%
   labs(title = "Distribution of loans by repayment status",
        y = "Count",
        x = "Loan status (Charged off = False, Paid = True)")+
-  theme_economist()
+  theme_bw()
 ```
 
 
@@ -281,7 +278,7 @@ lending_loans %>%
   labs(title = "Distribution of Loan Amount",
        x = "Loan Amount",
        y = "Count")+
-  theme_economist()
+  theme_bw()
 ```
 
 ```{r}
@@ -292,7 +289,7 @@ lending_loans %>%
   labs(title = "Loan Amount by Loan Status",
        x = "Loan Status",
        y = "Loan Amount")+
-  theme_economist()
+  theme_bw()
   
 ```
 
@@ -308,7 +305,7 @@ lending_loans %>%
   labs(title = "Distribution of Interest Rate %",
        x = "Interest Rate %",
        y = "Count")+
-  theme_economist()
+  theme_bw()
 ```
 
 ```{r}
@@ -319,7 +316,7 @@ lending_loans %>%
   labs(title = "Interest Rate % by Loan Status",
        x = "Loan Status",
        y = "Interest Rate %")+
-  theme_economist()
+  theme_bw()
 ```
 
 Charged-off loans tend to have much higher interest rates.
@@ -336,7 +333,7 @@ lending_loans %>%
        y = "Count",
        fill = "Loan Status")+
   scale_fill_manual(values = c("#e41a1c", "#4daf4a"))+
-  theme_economist()
+  theme_bw()
 ```
 
 Most of the borrowers are renting or have mortgage. Highest amount of charged-off loans is in the 'rent' category.
@@ -353,7 +350,7 @@ lending_loans %>%
        y = "Count",
        fill = "Loan Status")+
   scale_fill_manual(values = c("#e41a1c", "#4daf4a"))+
-  theme_economist()
+  theme_bw()
 ```
 
 Large portion of the borrowers is not verified.
@@ -368,7 +365,7 @@ lending_loans %>%
   labs(title = "Distribution of Average Fico Range",
        x = "Mean Fico Range",
        y = "Count")+
-  theme_economist()
+  theme_bw()
 ```
 
 
@@ -380,7 +377,7 @@ lending_loans %>%
   labs(title = "Avg Fico Range by Loan Status",
        x = "Loan Status",
        y = "Meam Fico Range")+
-  theme_economist()
+  theme_bw()
 ```
 
 Charged-off loans tend to have much smaller Fico Range. (*US Fico Range is similar UK's Credit Score)
@@ -401,7 +398,7 @@ lending_loans %>%
   labs(title = "Loans by Purpose",
        y = "Frequency",
        x = "Purpose")+
-  theme_economist()
+  theme_bw()
 ```
 
 ```{r}
@@ -418,7 +415,7 @@ lending_loans %>%
        x = "Purpose",
        fill = "Fully Paid")+
   scale_fill_manual(values = c("#e41a1c", "#4daf4a"))+
-  theme_economist()
+  theme_bw()
 ```
 
 
@@ -436,7 +433,7 @@ lending_loans %>%
   labs(title = "Annual income",
        y = "Frequency",
        x = "Annual income (unit 1000)")+
-  theme_economist()
+  theme_bw()
 ```
 
 
@@ -459,7 +456,7 @@ lending_loans %>%
   labs(title = "Loans by Grade Category",
        y = "Count",
        x = "Grade")+
-  theme_economist()
+  theme_bw()
 ```
 
 ```{r}
@@ -476,7 +473,7 @@ lending_loans %>%
        y = "Percentage",
        x = "Grade")+
   scale_fill_manual(values = c("#e41a1c", "#4daf4a"))+
-  theme_economist()
+  theme_bw()
 ```
 
 
@@ -504,7 +501,7 @@ test = subset(lending_loans, split == FALSE)
 
 Sample balance
 At this stage it is important to address that our outcome variable loan status is significantly unbalanced between the paid and default classes, approximately 5 to 1 ratio. This is understandably due to the nature of the business. 
-```{r}
+```{r, results = FALSE}
 table(lending_loans$loan_status)
 ```
 
@@ -512,7 +509,7 @@ table(lending_loans$loan_status)
 
 Check the distribution of outcome in the training and testing sets to see that they are roughly comparable.
 
-```{r}
+```{r, results = FALSE}
 # check the distribution of outcome in the training and testing
 train %>%
   tabyl(loan_status)
@@ -531,6 +528,7 @@ After we have carried out data cleaning and data analysis we fit our predictors 
 ```{r, results = FALSE}
 # logistic regression with all predictors
 log_reg_model_1 <- glm(loan_status ~ ., data = train, family = binomial(link = "logit"))
+summary(log_reg_model_1)
 ```
 
 
@@ -547,7 +545,7 @@ roc_pred <- loans_pred %>%
 
 roc_curve <- ggroc(data = roc_pred, legacy.axes = TRUE) +
   coord_fixed()+
-  theme_economist()
+  theme_bw()
 
 roc_curve
 ```
@@ -622,9 +620,10 @@ summary(glmulti_search_all_loans)
 #### Best Model Fit
 
 Which I had then fitted into the generalised linear model function for logistic regression.
-```{r}
+```{r, results = FALSE}
 # second logistic regression model from glmulti
 log_reg_model <- glm(loan_status ~ emp_length + purpose + pub_rec_bankruptcies +  annual_inc + inq_last_6mths + revol_bal + int_rate_pct + revol_util_pct + install_mth_pct + fico_range_avg + term_36, data = train, family = binomial(link = "logit"))
+summary(log_reg_model)
 ```
 
 #### Model's performance
@@ -669,15 +668,11 @@ score <- qlogis(log_reg_model$fitted.values)
 rocit_emp <- rocit(score = score,
 class = class,
 method = "emp")
-rocit_bin <- rocit(score = score,
-class = class,
-method = "bin")
-rocit_non <- rocit(score = score,
-class = class,
-method = "non")
+#rocit_bin <- rocit(score = score, class = class, method = "bin")
+#rocit_non <- rocit(score = score, class = class, method = "non")
 summary(rocit_emp)
-summary(rocit_bin)
-summary(rocit_non)
+#summary(rocit_bin)
+#summary(rocit_non)
 ## Plot ROC curve
 plot(rocit_emp, col = c(1,"gray50"),
 legend = FALSE, YIndex = TRUE)
@@ -735,12 +730,14 @@ I have adjusted my classification model by applying the optimal threshold 0.85 a
 On the left side, is my final confusion matrix converted to percentage and visualised as a heat map. As you can see the logistic regression model is better at predicting who will pay the loan but or true positive at 54%. On the other hand, the model is very poor at predicting the defaults with true negative coming to under 10%.
 The model has large type II error, false negative when the model predicts loan to be default but it is actually paid off.
 
-```{r}
+```{r, warning=FALSE}
 d_binomial <- tibble("prediction" = thres_0.85$pred_thresh_0.85,
             "actual" = thres_0.85$loan_status)
 basic_table <- table(d_binomial)
 cfm <- tidy(basic_table)
+```
 
+```{r, warning=FALSE}
 plot_confusion_matrix(cfm, 
                       target_col = "actual", 
                       prediction_col = "prediction",
@@ -769,14 +766,14 @@ auc(roc_test_2)
 The classification accuracy is relatively low 0.7054 for training set and 0.6977 for test set.
 
 Next we could calculate the area under the curve or AUC. We could use this as another measure of performance. The matrics ranges from 0.5 to 1, and values above 0.8 generally indicate that the model does a good job in describing between two categories which comprise our target variable. Our model has an accuracy of 70% which is definitely better than the random guess but we could look at how to improve it.
-```{r}
+```{r, message=FALSE}
 test_prob = predict(log_reg_model, newdata = test, type = "response")
 test_roc = roc(test$loan_status ~ test_prob, plot = TRUE, print.auc = TRUE, percent = TRUE, col = "#377eb8", lwd = 4)
 ```
 
 #### Feature Relative importance
 Below is a bar graph showing the relative importance of the main features that have a direct impact on an applicant being likely to pay the loan back or fall into default. The highest impact has a purpose of loan for small business, followed by loan term of 36 months, and loan inquiry in the past 6 months.
-```{r}
+```{r, message=FALSE}
 var_importance <- varImp(log_reg_model, scale = FALSE)
 
 var_importance<- var_importance %>% 
@@ -795,7 +792,7 @@ ggplot(var_importance)+
   labs(title = "Feature Relative Importance",
        y = "Relative importance",
        x = "")+
-  theme_economist()+
+  theme_bw()+
   theme(axis.text.x=element_text(angle=90, hjust=1))
   
 ```
