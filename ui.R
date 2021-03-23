@@ -33,7 +33,9 @@ ui <- dashboardPage(
                       style = "font-size:20px"),
                     br(),
                     p("Language: R",
-                      style = "font-size:20px")
+                      style = "font-size:20px"),
+                    br(),
+                    tags$a(href = "shiny.rstudio.com/tutorial", "github.com/KarolinaFrieszova",  style = "font-size:20px")
                     
             ),
             tabItem(tabName = "introduction",

@@ -79,6 +79,10 @@ library(glmulti)
 library(caTools)
 library(ROCR)
 library(ggplot2)
+library(ggthemes)
+library(cvms)
+library(ROCit)
+library(caret)
 ```
 
 #### Reading in data and joing tables
@@ -517,16 +521,16 @@ test %>%
   tabyl(loan_status)
 ```
 
-## Logistic regression - First Model
+## Logistic regression
+### First Model
 
-#### Fit First Model
+#### First Model Fit
 
 After we have carried out data cleaning and data analysis we fit our predictors into the generalised linear model function for logistic regression.
 
 ```{r, results = FALSE}
 # logistic regression with all predictors
-log_reg_model <- glm(loan_status ~ ., data = train, family = binomial(link = "logit"))
-summary(log_reg_model)
+log_reg_model_1 <- glm(loan_status ~ ., data = train, family = binomial(link = "logit"))
 ```
 
 
@@ -536,7 +540,7 @@ The receiving operating characteristic (ROC) is a visual measure of classifier p
 
 ```{r, message=FALSE}
 loans_pred <- test %>%
-  add_predictions(log_reg_model, type = "response")
+  add_predictions(log_reg_model_1, type = "response")
 
 roc_pred <- loans_pred %>%
   roc(response = loan_status, predictor = pred)
@@ -555,13 +559,13 @@ If we calculate the area under the curve (AUC), we can use this as a measure of 
 
 ```{r, message=FALSE, results=FALSE}
 roc_train <- train %>%
-  add_predictions(log_reg_model, type = "response") %>%
+  add_predictions(log_reg_model_1, type = "response") %>%
   roc(response = loan_status, predictor = pred)
 
 auc(roc_train)
 
 roc_test <- test %>%
-  add_predictions(log_reg_model, type = "response") %>%
+  add_predictions(log_reg_model_1, type = "response") %>%
   roc(response = loan_status, predictor = pred)
 
 auc(roc_test)
@@ -576,7 +580,7 @@ The classification accuracy is relatively low 0.70 for training set and 0.69 for
 # confusion matrix
 
 list(
-  log_reg_model= table(test$loan_status,  loans_pred$pred > 0.8) %>% prop.table() %>% round(3)
+  log_reg_model_1= table(test$loan_status,  loans_pred$pred > 0.8) %>% prop.table() %>% round(3)
 )
 ```
 true positives (Bottom-right quadrant): these are cases in which we predicted the customer would Fully pay and they did. - 67% accuracy.
@@ -592,7 +596,7 @@ The results show that 67% of the predicted observations are true positive and on
 Our model is fairly poor in predicting who won't pay off the loan.
 
 
-## Logistic regression - Second Model
+### Second Model
 
 
 #### Automated Model Selection
@@ -615,14 +619,14 @@ summary(glmulti_search_all_loans)
 ```
 
 
-#### Best Model
+#### Best Model Fit
 
 Which I had then fitted into the generalised linear model function for logistic regression.
-```{r, results = FALSE}
+```{r}
 # second logistic regression model from glmulti
-log_reg_model <- glm(loan_status ~ emp_length + purpose + pub_rec_bankruptcies +  annual_inc + inq_last_6mths + revol_bal + int_rate_pct + revol_util_pct + install_mth_pct + fico_range_avg + term_36, data = train, family = binomial)
-summary(log_reg_model_2)
+log_reg_model <- glm(loan_status ~ emp_length + purpose + pub_rec_bankruptcies +  annual_inc + inq_last_6mths + revol_bal + int_rate_pct + revol_util_pct + install_mth_pct + fico_range_avg + term_36, data = train, family = binomial(link = "logit"))
 ```
+
 #### Model's performance
 
 As we know logistic regression has binary values for dependent variable and the model outputs estimated probabilities. We can see how the model uses these probability values. We have to set a threshold above which we say the loan application is predicted to be paid, and below which it’s predicted to be default.
@@ -750,13 +754,13 @@ plot_confusion_matrix(cfm,
 
 ```{r, message=FALSE, results=FALSE}
 roc_train_2 <- train %>%
-  add_predictions(log_reg_model_2, type = "response") %>%
+  add_predictions(log_reg_model, type = "response") %>%
   roc(response = loan_status, predictor = pred)
 
 auc(roc_train_2)
 
 roc_test_2 <- test %>%
-  add_predictions(log_reg_model_2, type = "response") %>%
+  add_predictions(log_reg_model, type = "response") %>%
   roc(response = loan_status, predictor = pred)
 
 auc(roc_test_2)
@@ -798,12 +802,13 @@ ggplot(var_importance)+
 
 
 # CONCLUSION
-The two most important measures to evaluate models are accuracy and error values. 
+Our model performs better when predicting who is likely to pay off the loan in comparison to who won’t in the future. The model produces a large type II error of false-negative rate. We measured the model's performance also looking at the area under the curve which is equal to 70%, as I mentioned earlier we are generally looking for AUC to be above 80%. 
+Possible reason why our model is not great at predicting who won’t pay back could be due to learning from the unbalanced dataset. The model learned from the training set with a significantly higher proportion of fully paid compared to default loans. Therefore, default loan is a rare event in our training data set.
+Dealing with disproportionate classification is a common scenario in the investment and banking sector, where the classification accuracy could be a problematic measure and could lead us to make wrong decisions. 
 
-The accuracy of our model is 70%. The model produces a large type II error with over 30% of the false-negative rate. It performs better predicting who is likely to pay the loan in comparison to predicting who is likely to default. The reason for this poor performance could be the unbalanced dataset. The model learned from the training set with a significantly higher proportion of fully paid compared to default loans. Therefore, default loan is a rare event in our training data set.
-The classification accuracy could be a problematic measure for disproportionate classification which is a common scenario in the investment and banking sector and can lead us to make wrong decisions. 
 Therefore, for this kind of model, the ROC curve is a better measure of model performance as it gives us a real picture of the quality of our model.  
 
-For future model performance improvement, I would suggest applying additional methods such as strategy curve, cost-sensitive learning, under-sampling, or over-sampling. Also, other methods can be used for classification, for instance, random forest, neural networks, or naive Bayes. 
+For future model performance improvement, I would suggest applying additional methods such as strategy curve, cost-sensitive learning, under-sampling, over-sampling, re-training model with newer data. 
+Also, other methods can be used for classification, for instance, random forest, neural networks, or naive Bayes. 
 
 *Classification Accuracy is the number of correct predictions made divided by the total number of predictions made, multiplied by 100 to turn it into a percentage.

@@ -24,14 +24,14 @@ log_reg_model <- glm(loan_status ~ emp_length + purpose + pub_rec_bankruptcies +
                      revol_util_pct + install_mth_pct + fico_range_avg + term_36, 
                      data = train, family = binomial)
 
-#
+# estimated probabilities and thresholds
 test_data_with_predictors <- test %>%
   add_predictions(log_reg_model, type = "response") %>% 
   mutate(pred_thresh_0.5 = pred >= 0.5) %>% 
   mutate(pred_thresh_0.8 = pred >= 0.8) %>% 
   select(loan_status, pred, pred_thresh_0.5, pred_thresh_0.8)
 
-#
+# pivot longer dataset with estimated probabilities and thesholds
 cutoff_graph <- test_data_with_predictors %>% 
   pivot_longer(c(pred_thresh_0.5, pred_thresh_0.8, loan_status), 
                names_to = "cutoff",
@@ -47,7 +47,7 @@ make_threshold_graph <- function(cutoff_select){
     labs(y = "Count\n",
          x = "\nThreshold")+
     scale_fill_manual(values = c("#e41a1c", "#4daf4a"))+
-    geom_text(stat="count", aes(label=..count..), size = 6, vjust = 1.2)+
+   # geom_text(stat="count", aes(label=..count..), size = 6, vjust = 1.2)+
     theme_economist()
 }
 

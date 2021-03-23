@@ -5,6 +5,7 @@ library(cvms)
 library(broom)
 library(caTools)
 library(janitor)
+library(ggthemes)
 
 source(here("scripts/exploratory_analysis.R"))
 source(here("scripts/dataset_summary.R"))
@@ -36,16 +37,10 @@ server <- function(input, output) {
     )
     
     output$myList <- renderUI(HTML("<font size = 4><ul>
-    <li>drop features (columns) with more than 50% of observations missing</li>
-    <li>drop features collected about the borrower after the loan was granted</li>
-    <li>drop features with one constant value</li>
-    <li>tackle (drop or reduce) features with high cardinality</li>
-    <li>encode target variable as binary (paid == TRUE, charged off == FALSE)</li>
-    <li>replace some features with missing values with median imputation</li>
-    <li>drop highly correlated features</li>
-    <li>convert feature class</li>
-    <li>create feature (eg. monthly employment expense)</li>
-    <li>feature reduction (from 114 to 21 independent variables and one target)</li>
+    <li>Supervised machine learning method (logistic regression algorithm)</li>
+    <li>Set and encode lean status as target variable to represent only two possibilities: paid and default loans</li>
+    <li>Feature reduction</li>
+    <li>Data engineering</li>
     </ul></font>"))
     
     output$loan_amount_1 <- renderPlot(
@@ -144,19 +139,18 @@ server <- function(input, output) {
     )
     
     output$myList_3 <- renderUI(HTML("<font size = 4><ul>
-    <li>Important performance measures are accuracy and error values</li>
-    <li>Accuracy 70%</li>
-    <li>Large type II error (30.5%)</li>
-    <li>The ROC curve gives a real picture of the quality of our mode</li>
+    <li>Better performance at predicting who is likely to pay the loan in the future</li>
+    <li>Poor performance at predicting who isn't likely to pay off the loan in the future</li>
+    <li>Large type II error / false-negative rate</li>
+    <li>Area under the curve 0.70 (generally aiming for 0.80)</li>
     <li>Setback: unbalanced dataset</li>
-    <li>Classification Accuracy could be problematic measure for disproportionate 
-    classification (common scenario in the investment and banking sector) can lead to making wrong decisions</li>
-    <li>Better measure is the ROC-curve which shows true positive rates against false-positive rates</li>
+    <li>Common scenario in the investment and banking sector</li>
+    <li>Better performance measure: the ROC curve (true positive rates against false-positive rates)</li>
     </ul></font>")
     )
     
     output$myList_4 <- renderUI(HTML("<font size = 4><ul>
-    <li>Applying additional methods such as strategy curve, cost-sensitive learning, under-sampling, or over-sampling</li>
+    <li>Applying additional methods such as strategy curve, cost-sensitive learning, under-sampling, over-sampling, or re-training model with newer data</li>
     <li>Also, other methods can be used for classification, for instance Random forest, Neural networks, or Naive Bayes</li>
     </ul></font>")
     )
