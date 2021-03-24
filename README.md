@@ -4,13 +4,13 @@
 | -----------                           | ----------- |
 | Karolina Frieszova| 2021-03-24  |
 
-For comprehensive analysis with code please look at the file called complete\_case_analysis.pdf in the scripts folder.
+- For comprehensive analysis and code please look at the file called complete\_case_analysis.pdf in the scripts folder.
 
-The whole project was written in R.
+- The whole project was written in R.
 
-Screenshots of the presented dashboard about the project findings are attached below. 
+- Screenshots of the presented dashboard about the project findings are attached below. 
 
-INTRODUCTION
+### INTRODUCTION
 
 **The project aimed** to develop a predictive machine learning model on data provided by an online loan provider called LendingClub to aid their understanding and risk assessment of who they should lend to and who is likely to default in the future. 
 
@@ -25,7 +25,7 @@ So my project was basically about finding the right characteristics of an applic
 
 <img src = "www/intro.png" width = "750" height = "450">
 
-DATA PREPARATION
+### DATA PREPARATION
 
 To build a predictive model, I used a supervised machine learning method, specifically, a logistic regression. But before I could start building my binary classifier, I had to curry out vast data cleaning.
 
@@ -39,7 +39,7 @@ At the bottom of the page,  we can see the original dataset on the left-hand sid
 
 <img src = "www/cleaning.png" width = "750" height = "450">
 
-EXPLORATORY ANALYSIS
+### EXPLORATORY ANALYSIS
 
 After that, I performed an exploratory analysis to familiarise myself with the data and I look for any obvious predictors. 
 I analysed loan amount, interest rate, credit score, loan grading, purpose, homeownership, and verification status. 
@@ -48,7 +48,7 @@ I identified for instance that default loans tend to have much higher interest r
 
 <img src = "www/analysis.png" width = "750" height = "450">
 
-MODEL BUILDING
+### MODEL BUILDING
 
 Next step, I got to building my **logistic regression model**. After I assured that my features fulfill the **model assumptions** on the independence of two variables, dependent variable to be binary, and no high correlation between independent variables. 
 
@@ -67,7 +67,7 @@ By default, the threshold value is set to 0.5 which works well for balanced data
 
 <img src = "www/model.png" width = "750" height = "450">
 
-EVALUATION
+### EVALUATION
 
 I have adjusted my classification model by applying the optimal **threshold** of 0.85 as a cut-off point where the model predicts a loan to be paid by the borrower and we can accept the application, and below which model predicts that the borrower is likely to default and application could be declined by the business.
 
@@ -81,14 +81,18 @@ Below is a bar graph showing the **relative importance** of the main features th
 <img src = "www/evaluation.png" width = "750" height = "450">
 
 
-CONCLUSION
+### CONCLUSION
 
 I can conclude that my final model performs better when predicting who is likely to pay off the loan comparing to who isn't likely to pay back in the future. Additionally, the model produces a large type II error of false-negative rate which can lead to false assumptions and poor decision making that can result in lost sales or decreased profits. 
 
 I also looked at the area under the curve (AUC) which is another measure of the model's performance. Where generally values above 0.80 indicate that the model does a good job in describing between two categories. Our model produced AUC on the test set equal to 0.70 which is better than a random guess but we should look at how we can improve it. 
 
 The possible reason why our model is not great at predicting who won’t pay back could be due to learning from the unbalanced dataset. The model learned from the training set with a significantly higher proportion of fully paid compared to default loans. Therefore, default loan is a rare event in our training data set.
+
 Dealing with disproportionate classification is a common scenario in the investment and banking sector, where the classification accuracy could be a problematic measure and could lead us to make wrong decisions. 
+
+For future model performance improvement, I would suggest applying additional methods such as strategy curve, cost-sensitive learning, under-sampling, over-sampling, re-training model with newer data. 
+Also, other methods can be used for classification, for instance, random forest, neural networks, or naive Bayes. 
 
 <img src = "www/conclusion.png" width = "750" height = "450">
 
