@@ -8,7 +8,7 @@ ui <- dashboardPage(
     dashboardSidebar(
         sidebarMenu(
             tags$style(HTML(".sidebar-menu li a { font-size: 18px; }")),
-            menuItem("About", tabName = "about"),
+            menuItem("About Me", tabName = "about"),
             menuItem("Introduction", tabName = "introduction"),
             menuItem("Data Preparation", tabName = "preparation"),
             menuItem("Exploratory Analysis", tabName = "analysis"),
